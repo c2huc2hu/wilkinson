@@ -1,0 +1,52 @@
+
+Scanned images that we have.
+LOC# page pp type banked? solved? transcribed?
+
+FILE 1
+
+1524       1    ?  - n y       
+1576-1583  8 1096  - n n      
+1598       1 1096  - n y 
+1599-1600  2 1078  - n y 
+1614-1624 11 1096  - ? some    (solution 2975-2989 -- missing)
+1630-1631  2 1096  - n n
+1633       1 1096? y y n
+1635-1637  3 1096  - ? y       (solution 3014-3018 -- missing)
+1642-1643  2 1096  - n n
+1652       1 1078  y y n
+
+FILE A
+
+2874       1    ?  - n n
+2877       1 1078  y y n
+2880-2882  3 1078? y y n
+2888-2890  3 1096  - n n
+2895-2898  4 1096  - n n
+2907-2909  3 1078  - n n
+2916       1 1078  y y n
+2920-2923  4 1078  n y n
+2930       1 1096  - n n
+2943-2946  4 1096  - n n
+2951-2953  3 1096  - n n
+2958-2961  4 1078  n y n
+2962-2965  4 1096  - n n
+2972       1 1096  - n n
+2990       1 1078  some y n
+2998-3006  9 1078  n y n
+3044-3047  4 1078  - n y
+
+FILE B
+
+3063-3072 10 1096  n y n
+
+NOTES
+
+- Solved ciphers (these are generally banked directly, and not transcribed)
+  - 7 pages solved and banked: 1633, 1652, 2877, 2880-2882, 2916.
+  - 27 pages solved but not yet banked:  2920-2923, 2958-2961, 2998-3006, 3063-3072.
+  - 14 pages solved, but we don't have the solution scans: 1614-1624 (solution: 2975-2989), 1635-1637 (solution: 3014-3018).
+
+- Unsolved ciphers 
+  - 12 pages transcribed: 1524, 1598, 1599-1600, 1614-1624 (part), 3044-3047.
+  - Lots more not transcribed.
+
