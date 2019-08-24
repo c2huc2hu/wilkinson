@@ -4,8 +4,8 @@ import re
 from avltree import TokenAVL
 
 class Token():
-    dict_re = r'(?P<page>\d+)\.\(?P<row>[\d+\])(?P<col>[=-])'
-    table_re = r'(?P<row>\[\d+\])\^'
+    dict_re = r'(?P<page>\d+)\.\[(?P<row>\d+)\](?P<col>[=-])'
+    table_re = r'\[(?P<row>\d+)\]\^'
 
     def __init__(self, s, plaintext='<unk>'):
         self.raw = s.strip()
@@ -13,16 +13,16 @@ class Token():
         self.ciphertype = None # which type of cipher this uses. one of: None (unparsed), dict or table
 
         # parse
-        m = re.match(dict_re, self.raw):
+        m = re.match(Token.dict_re, self.raw)
         if m:
             self.ciphertype = 'dict'
             self.page = int(m.group('page'))
             self.row = int(m.group('row'))
             self.col = {'-': 0, '=': 1}[m.group('col')] # - is col 1, = is col 2
-        m = re.match(table_re, self.raw)
+        m = re.match(Token.table_re, self.raw)
         if m:
             self.ciphertype = 'table'
-            self.row = m.group('row')
+            self.row = int(m.group('row'))
 
     def __sub__(self, other):
         '''get the number of words between this and another token'''
@@ -31,10 +31,18 @@ class Token():
             return None
         return int(self) - int(other)
 
+    def __gt__(self, other):
+        return int(self) > int(other)
+
     def __int__(self):
-        return (2 * 29 * (self.page - 1) # TODO: change 29 when using other wordbanks
-                + 29 * self.col
-                + (self.row - 1))
+        if self.ciphertype == 'dict':
+            return (2 * 29 * (self.page - 1) # TODO: change 29 when using other wordbanks
+                    + 29 * self.col
+                    + (self.row - 1))
+        elif self.ciphertype == 'table':
+            return self.row
+        else:
+            return 0
 
     def __hash__(self):
         return hash(self.raw) # need to be able to compare tokens with plaintext set and those without. this makes that equivalence true
@@ -57,9 +65,11 @@ class Wordbank():
                 except ValueError:
                     pass # blank line; skip
 
-                if source_filter is None or source in source_filter:
-                    t = Token(location, word)
-                    self._dict[t] = word
+                # if source_filter is None or source in source_filter:
+                t = Token(location, word)
+                self._dict[t] = word
+
+                if t.ciphertype == 'dict':
                     self._tree.insert(t)
 
     # imaginary words that would go at the beginning and end of a dictionary

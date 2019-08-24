@@ -285,7 +285,7 @@ class AVL(object):
 
 class TokenNode(AVLNode):
     def __init__(self, parent, token):
-        super().__init__(self, parent, int(token))
+        super().__init__(parent, int(token))
         self.token = token
 
     def find_neighbours(self, k):
