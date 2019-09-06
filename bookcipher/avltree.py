@@ -300,7 +300,7 @@ class TokenNode(AVLNode):
             if self.left is None:
                 return None, self
             else:
-                lower_bound, upper_bound = self.left.find_neighbors(k)
+                lower_bound, upper_bound = self.left.find_neighbours(k)
                 if upper_bound is None:
                     return lower_bound, self
                 else:
@@ -309,7 +309,7 @@ class TokenNode(AVLNode):
             if self.right is None:
                 return self, None
             else:
-                lower_bound, upper_bound = self.right.find_neighbors(k)
+                lower_bound, upper_bound = self.right.find_neighbours(k)
                 if lower_bound is None:
                     return self, upper_bound
                 else:
@@ -328,11 +328,11 @@ class TokenAVL(AVL):
             self.root.insert(node)
         self.rebalance(node)
 
-    def find_neighbours(self, k):
+    def find_neighbours(self, token):
         if self.root is None:
             return None, None
         else:
-            return find_neighbours(self.root)
+            return self.root.find_neighbours(int(token))
 
     def delete(self, k):
         raise NotImplemented('delete is not implemented')

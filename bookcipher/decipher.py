@@ -10,7 +10,8 @@ import scipy
 
 from wordbank import Token, Wordbank
 
-vocab = inv_vocab = None # modern dictionary. these are globals and don't change
+vocab = None # modern dictionary word -> ID
+inv_vocab = None # modern dictionary. ID -> word
 
 def basic_substitute(ciphertext, wordbank):
     '''
@@ -27,30 +28,38 @@ def tokenize_ciphertext(ciphertext):
     '''
     return a token_list
     '''
-    return list(map(Token, re.split(r'\s', ciphertext)))
+    result = []
+    for raw_token in re.split(r' |({})|({})'.format(
+            r'\d+\.\[\d+\][=-]', # re that picks up things using the dict cipher
+            r'\[\d+\]\^' # re that picks up things using the table cipher
+        ), ciphertext):
+        if raw_token:
+            result.append(Token(raw_token))
+
+    return result
 
 # def apply_wordbank(token_list, wordbank):
 #     for token in token_list:
 #         if token in wordbank:
 #             token.plaintext = wordbank[token]
 
-def load_vocab(filename):
-    '''
-    load a vocabulary. 
+# def load_vocab(filename):
+#     '''
+#     load a vocabulary. 
 
-    input should be a sorted list
-    '''
-    _vocab = {} # word -> index
-    _inv_vocab = [] # index -> word
-    with open(filename) as f:
-        for idx, line in enumerate(f):
-            _vocab = {line: idx}
-            _inv_vocab.append(line)
+#     input should be a sorted list
+#     '''
+#     _vocab = {} # word -> index
+#     _inv_vocab = [] # index -> word
+#     with open(filename) as f:
+#         for idx, line in enumerate(f):
+#             _vocab = {line: idx}
+#             _inv_vocab.append(line)
 
-    _vocab['<unk>'] = len(_vocab)
-    _inv_vocab.append('<unk>')
+#     _vocab['<unk>'] = len(_vocab)
+#     _inv_vocab.append('<unk>')
 
-    return _vocab, _inv_vocab
+#     return _vocab, _inv_vocab
 
 # noisy channel model
 def lm(token_list):
@@ -65,13 +74,13 @@ def lm(token_list):
 
     score = 0
 
-    # these are constant for unigrams
-    likelihood = np.array([1 / len(word) for word in inv_vocab])
+    # probability of each word. these are not history dependent
+    likelihood = np.array([1 / len(word) for word in vocab.words])
     logprob = np.log(likelihood / likelihood.sum())
 
     # get score over history
     for token in token_list:
-        score += vocab[token.plaintext]
+        score += logprob(vocab.lookup_word(token.plaintext))
 
     # add history score to score for each possible addition
     return score + logprob
@@ -156,8 +165,15 @@ def decode(token_list, wordbank, beam_size=16):
 
 if __name__ == '__main__':
     wordbank = Wordbank()
-    wordbank.load('wordbank.without.2880')
+    wordbank.load('wordbanks/wordbank.without.2880')
 
-    vocab, inv_vocab = load_vocab('dict.modern')
+    # vocab, inv_vocab = load_vocab('dict.modern')
     ciphertext = '[556]^ 586[26]- Ferdinand 2 [678]^ 95 ? [1235]^ y ? [433]^ [79]^ [664]^'
-    print(decode(tokenize_ciphertext(ciphertext), wordbank))
+    tokenized_ct = tokenize_ciphertext(ciphertext)
+
+    # One hour baseline
+    print(tokenized_ct)
+
+    # Beam search experiments
+    
+    # print(decode(tokenize_ciphertext(ciphertext), wordbank))
