@@ -1,4 +1,4 @@
-from wordbank import Wordbank
+from wordbank import Wordbank, Token
 from vocab import Vocab
 
 from decipher import tokenize_ciphertext # todo: move this
@@ -10,8 +10,6 @@ wordbank.load('wordbanks/wordbank.clean')
 wordbank.load('wordbanks/wordbank.guess')
 vocab = Vocab('dict.modern')
 
-
-
 # ciphertext = '[556]^ 586.[26]- Ferdinand 2 [678]^ 95 ? [1235]^ y ? [433]^ [79]^ [664]^'
 
 with open('data/unsolved.ciphers.1078') as fh:
@@ -19,26 +17,26 @@ with open('data/unsolved.ciphers.1078') as fh:
 
 # raw text
 tokenized_ct = tokenize_ciphertext(ciphertext)
-print('raw text')
-print(tokenized_ct)
-print('================== raw text')
+# print('raw text')
+# print(tokenized_ct)
+# print('================== raw text')
 
 # apply wordbank
 wordbanked_ct = [wordbank.apply(token) for token in tokenized_ct]
-print('wordbanked text')
-print(wordbanked_ct)
-print('================== wordbanked text')
+# print('wordbanked text')
+# print(wordbanked_ct)
+# print('================== wordbanked text')
 
 # apply a basic interpolation
 deciphered_ct = [
     wordbank.interpolate(token, vocab) if token.is_unk() else token for token in wordbanked_ct
 ]
 
-print('deciphered text')
-print(deciphered_ct)
-print('================== deciphered text')
+# print('deciphered text')
+# print(deciphered_ct)
+# print('================== deciphered text')
 
-print(' '.join(map(str, deciphered_ct)))
+# print(' '.join(map(str, deciphered_ct)))
 
 
 # super hacky html output

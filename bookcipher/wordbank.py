@@ -38,7 +38,7 @@ class Token():
             self.ciphertype = 'table'
             self.row = int(m_table.group('row'))
 
-            if self.row < 160 or self.row >= 1240: # outside of this range, the table isn't alphabetical. it's proper nouns and other stuff
+            if self.row < 160 or self.row > 1221: # outside of this range, the table isn't alphabetical. it's proper nouns and other stuff
                 self.ciphertype = None
                 del self.row
                 self.plaintext = '<unk>'
@@ -92,8 +92,10 @@ class Token():
         else:
             if self.source == 'literal':
                 style = 'background-color:turquoise;'
-            elif self.source == 'wordbank':
+            elif self.source == 'clean_wordbank':
                 style = 'background-color:lightblue;'
+            elif self.source == 'guess':
+                style = 'background-color:rgb(0,224,0);'
             else:
                 style = 'background-color: rgb(0,{},0);'.format(127 + self.prob*128)
 
@@ -103,15 +105,19 @@ class Token():
                         raw:{raw}<br>p:{prob}<br>source:{source}
                     </span>
                 </div>
-            '''.format(plaintext=self.plaintext, source=self.source, raw=self.raw, prob=self.prob, style=style)
+            '''.format(plaintext=self.plaintext.replace('<', '&lt;'), source=self.source, raw=self.raw, prob=self.prob, style=style)
 
 class Wordbank():
     def __init__(self):
         self._dict = {} # mapping Token -> word
+        self._wordbank_source = {} # mapping Token -> source for debugging, check where every word came from
         self._dict_tree = TokenAVL() # avl tree storing tokens for those encypted with the dictionary method. used to keep track of ranges
         self._table_tree = TokenAVL() # same as above for the table method
 
-    def load(self, filename):
+    def load(self, filename, wordbank_name=''):
+        if wordbank_name and not wordbank_name.endswith('/'):
+            wordbank_name += '/'
+
         with open(filename) as f:
             next(f) # skip header line
 
@@ -126,6 +132,7 @@ class Wordbank():
                 # if source_filter is None or source in source_filter:
                 t = Token(location, word)
                 self._dict[t] = word
+                self._wordbank_source[t] = wordbank_name + _source
 
                 if t.ciphertype == 'table':
                     self._table_tree.insert(t)
@@ -136,14 +143,14 @@ class Wordbank():
     left_dict_dummy = Token('1.[1]-', '-')
     right_dict_dummy = Token('780.[1]-', 'zzzzzzz')     # the last attested word is 44,312 = yourself. it will only affect words after "yourself" in the dictionary, so doesn't really matter
     left_table_dummy = Token('[160]^', '-')
-    right_table_dummy = Token('[1240]^', 'zzzzzzz')
+    right_table_dummy = Token('[1221]^', 'zzzzzzz')     # last attested alphabetical word is 1219 = young, after that it becomes a lookup table again
 
 
     def apply(self, query_token):
         '''apply wordbank if the token is known'''
         if query_token in self._dict:
             t = Token(query_token.raw, plaintext=self._dict[query_token])
-            t.source = 'wordbank'
+            t.source = self._wordbank_source[query_token]
             t.prob = 1
             return t
         else:
