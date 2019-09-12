@@ -1,42 +1,34 @@
 from wordbank import Wordbank, Token
 from vocab import Vocab
-
-from decipher import tokenize_ciphertext # todo: move this
+from passes import tokenize_ciphertext, add_frequency_attack
 
 # One hour baseline
 
+## Debugging string
+# ciphertext = '[556]^ 586.[26]- Ferdinand 2 [678]^ 95 ? [1235]^ y ? [433]^ [79]^ [664]^'
+
+with open('data/unsolved.ciphers.1078') as fh:
+    untokenized_ciphertext = fh.read()
+    ciphertext = tokenize_ciphertext(untokenized_ciphertext)
+
+
 wordbank = Wordbank()
+wordbank.load('wordbanks/wordbank.miro')
 wordbank.load('wordbanks/wordbank.clean')
 wordbank.load('wordbanks/wordbank.guess')
 vocab = Vocab('dict.modern')
 
-# ciphertext = '[556]^ 586.[26]- Ferdinand 2 [678]^ 95 ? [1235]^ y ? [433]^ [79]^ [664]^'
+print(wordbank._dict)
 
-with open('data/unsolved.ciphers.1078') as fh:
-    ciphertext = fh.read()
+# apply the first two wordbanks
+ciphertext = wordbank.run(ciphertext)
 
-# raw text
-tokenized_ct = tokenize_ciphertext(ciphertext)
-# print('raw text')
-# print(tokenized_ct)
-# print('================== raw text')
+# apply a frequency attack
+# add_frequency_attack(wordbank, ciphertext)
 
-# apply wordbank
-wordbanked_ct = [wordbank.apply(token) for token in tokenized_ct]
-# print('wordbanked text')
-# print(wordbanked_ct)
-# print('================== wordbanked text')
+# interpolate to make it readable
+message = wordbank.run(ciphertext, interpolate=True, vocab=vocab)
 
-# apply a basic interpolation
-deciphered_ct = [
-    wordbank.interpolate(token, vocab) if token.is_unk() else token for token in wordbanked_ct
-]
-
-# print('deciphered text')
-# print(deciphered_ct)
-# print('================== deciphered text')
-
-# print(' '.join(map(str, deciphered_ct)))
 
 
 # super hacky html output
@@ -59,6 +51,6 @@ with open('output/visualize.html', 'w') as fh:
 
         ''')
 
-    fh.write(' '.join(token.to_html() for token in deciphered_ct))
+    fh.write(' '.join(token.to_html() for token in message))
 
     fh.write('</body>')

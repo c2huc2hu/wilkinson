@@ -10,12 +10,12 @@ class Token():
     dict_re = r'(?P<page>\d+)\.\[(?P<row>\d+)\](?P<col>[=-])'
     table_re = r'\[(?P<row>\d+)\]\^'
 
-    def __init__(self, raw_string, plaintext='<unk>'):
+    def __init__(self, raw_string, plaintext='<unk>', source=''):
         self.raw = raw_string.strip(' ')
         self.plaintext = plaintext
         self.ciphertype = None # which type of cipher this uses. one of: None (unparsed), dict or table
 
-        self.source = ''
+        self.source = source
         self.prob = 0
 
         # parse
@@ -38,7 +38,7 @@ class Token():
             self.ciphertype = 'table'
             self.row = int(m_table.group('row'))
 
-            if self.row < 160 or self.row > 1221: # outside of this range, the table isn't alphabetical. it's proper nouns and other stuff
+            if self.row < 160 or self.row >= 1221: # outside of this range, the table isn't alphabetical. it's proper nouns and other stuff
                 self.ciphertype = None
                 del self.row
                 self.plaintext = '<unk>'
@@ -90,22 +90,30 @@ class Token():
         if self.plaintext == '\n':
             return '''<p/>''' # easy way to make a line break
         else:
-            if self.source == 'literal':
-                style = 'background-color:turquoise;'
-            elif self.source == 'clean_wordbank':
-                style = 'background-color:lightblue;'
-            elif self.source == 'guess':
-                style = 'background-color:rgb(0,224,0);'
+
+            # key mapping source -> html colors
+            source_key = {
+                'literal': 'turquoise',
+                'clean_wordbank': 'lightblue',
+                'miro': 'lightblue',
+                'guess': 'limegreen',
+                'frequency_attack': 'gold',
+                'interpolate': 'darkgreen',
+            }
+
+            if self.source in source_key:
+                style = 'background-color:' + source_key[self.source] + ';'
             else:
                 style = 'background-color: rgb(0,{},0);'.format(127 + self.prob*128)
 
             return '''
                 <div class="tooltip" style="{style}">{plaintext}
                     <span class="tooltiptext">
-                        raw:{raw}<br>p:{prob}<br>source:{source}
+                        raw:{raw}<br>p:{prob:.2}<br>source:{source}
                     </span>
                 </div>
-            '''.format(plaintext=self.plaintext.replace('<', '&lt;'), source=self.source, raw=self.raw, prob=self.prob, style=style)
+            '''.format(plaintext=self.plaintext.replace('<', '&lt;'), 
+                    source=self.source, raw=self.raw, prob=float(self.prob), style=style)
 
 class Wordbank():
     def __init__(self):
@@ -125,19 +133,21 @@ class Wordbank():
                 if line.startswith('#'):
                     continue
                 try:
-                    location, _source, word = line.strip().split('\t')
+                    location, source, word = line.strip().split('\t')
+                    self.add(location, word, wordbank_name + source)
                 except ValueError:
-                    continue # blank line; skip
+                    pass # blank line; skip
 
-                # if source_filter is None or source in source_filter:
-                t = Token(location, word)
-                self._dict[t] = word
-                self._wordbank_source[t] = wordbank_name + _source
+    def add(self, raw, plaintext, source=''):
+        '''add a word to the wordbank'''
+        t = Token(raw, plaintext)
+        self._dict[t] = plaintext
+        self._wordbank_source[t] = source
 
-                if t.ciphertype == 'table':
-                    self._table_tree.insert(t)
-                if t.ciphertype == 'dict':
-                    self._dict_tree.insert(t)
+        if t.ciphertype == 'table':
+            self._table_tree.insert(t)
+        elif t.ciphertype == 'dict':
+            self._dict_tree.insert(t)
 
     # imaginary words that would go at the beginning and end of a dictionary
     left_dict_dummy = Token('1.[1]-', '-')
@@ -145,13 +155,12 @@ class Wordbank():
     left_table_dummy = Token('[160]^', '-')
     right_table_dummy = Token('[1221]^', 'zzzzzzz')     # last attested alphabetical word is 1219 = young, after that it becomes a lookup table again
 
-
     def apply(self, query_token):
         '''apply wordbank if the token is known'''
         if query_token in self._dict:
             t = Token(query_token.raw, plaintext=self._dict[query_token])
             t.source = self._wordbank_source[query_token]
-            t.prob = 1
+            t.prob = 1.0
             return t
         else:
             return query_token
@@ -208,4 +217,49 @@ class Wordbank():
             interpolated_position = round(modern_left + interpolated_relative_position * (modern_right - modern_left))
             interpolated_plaintext = vocab.lookup_id(interpolated_position)
 
-            return Token(query_token.raw, plaintext=interpolated_plaintext)
+            t = Token(query_token.raw, plaintext=interpolated_plaintext, source='interpolate')
+
+            # express certainty depending on how big the range is. 
+            # we're more certain about smaller ranges, so scale them closer to 1. this also increases colour contrast
+            t.prob = interpolated_relative_position ** (1/3)
+            return t
+
+    @property
+    def words(self):
+        '''Return a generator over all known plaintext words in the wordbank'''
+        return self._dict.values()
+
+    def run(self, tokenized_ciphertext, interpolate=False, vocab=None, verbose=False):
+        '''
+        apply a single substitution pass on the cihpertext, and optionally an interpolation pass.
+        call this after updating the wordbank
+
+        interpolate should only be called once, because it substitutes all unknown tokens with <unk>
+        vocab must be provided if interpolate is True
+        '''
+
+        if verbose:
+            print('before running')
+            print(tokenized_ciphertext)
+            print('================== before running')
+
+        # apply wordbank
+        wordbanked_ct = [self.apply(token) for token in tokenized_ciphertext]
+        if verbose:
+            print('text after applying wordbank')
+            print(wordbanked_ct)
+            print('================== applied wordbank')
+
+        if not interpolate:
+            return wordbanked_ct
+        else:
+            # apply a basic interpolation to make the text easier to read
+            deciphered_ct = [self.interpolate(token, vocab) if token.is_unk() else token for token in wordbanked_ct]
+
+            if verbose:
+                print('text after applying interpolation')
+                print(deciphered_ct)
+                print('================== applied interpolation')
+                print(' '.join(map(str, deciphered_ct)))
+
+            return deciphered_ct

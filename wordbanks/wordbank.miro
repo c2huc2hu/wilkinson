@@ -1,0 +1,24 @@
+# The word doc Kevin sent has a more deciphered letters
+# The indices for the dictionary are way off, (last page is about 400), so a different dictionary was used.
+# However, the indices for the table are exactly 10 lower than in our wordbank
+# I suspect that they added another 10 extra words to the beginning at some point
+# There is no overlap in the proper nouns with our known wordbank, so it's unclear whether they overlap or not
+
+[183]^	miro	as
+[306]^	miro	bud
+[325]^	miro	case
+[420]^	miro	cut
+[596]^	miro	go
+[609]^	miro	great
+[644]^	miro	here
+[759]^	miro	may
+[779]^	miro	most
+[783]^	miro	must
+[805]^	miro	off
+[811]^	miro	our
+[822]^	miro	pass
+[965]^	miro	should
+[1031]^	miro	stay
+[1081]^	miro	them
+[1083]^	miro	there
+[1142]^	miro	views

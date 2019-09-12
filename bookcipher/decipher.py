@@ -24,19 +24,6 @@ def basic_substitute(ciphertext, wordbank):
     token_list = tokenize_ciphertext(ciphertext)
     return ' '.join(token.plaintext for token in token_list)
 
-def tokenize_ciphertext(ciphertext):
-    '''
-    return a token_list
-    '''
-    result = []
-    for raw_token in re.split(r' |({})|({})'.format(
-            r'\d+\.\[\d+\][=-]', # re that picks up things using the dict cipher
-            r'\[\d+\]\^' # re that picks up things using the table cipher
-        ), ciphertext):
-        if raw_token:
-            result.append(Token(raw_token))
-
-    return result
 
 # def apply_wordbank(token_list, wordbank):
 #     for token in token_list:
