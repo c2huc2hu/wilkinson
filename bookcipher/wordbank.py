@@ -48,8 +48,16 @@ class Token():
             self.source = 'literal'
             self.prob = 1
 
-    def is_unk(self):
-        return self.plaintext == '<unk>'
+    def is_unk(self, wb=None):
+        '''
+        Return whether this token object has plaintext assigned to it. If wb is provided, checks whether this token is known by that wordbank
+
+        wb: an instance of wordbank
+        '''
+        if wb:
+            return self not in wb._dict
+        else:
+            return self.plaintext == '<unk>'
 
     def __sub__(self, other):
         '''get the number of words between this and another token'''
@@ -95,10 +103,11 @@ class Token():
             source_key = {
                 'literal': 'turquoise',
                 'clean_wordbank': 'lightblue',
-                'miro': 'lightblue',
+                'miro': 'skyblue',
+                '2880': 'deepskyblue',
                 'guess': 'limegreen',
                 'frequency_attack': 'gold',
-                'interpolate': 'darkgreen',
+                # 'interpolate': 'darkgreen',
             }
 
             if self.source in source_key:
@@ -116,31 +125,34 @@ class Token():
                     source=self.source, raw=self.raw, prob=float(self.prob), style=style)
 
 class Wordbank():
-    def __init__(self):
+    def __init__(self, vocab):
         self._dict = {} # mapping Token -> word
         self._wordbank_source = {} # mapping Token -> source for debugging, check where every word came from
-        self._dict_tree = TokenAVL() # avl tree storing tokens for those encypted with the dictionary method. used to keep track of ranges
+        self._dict_tree = TokenAVL() # binary search tree storing tokens for those encypted with the dictionary method. used to keep track of ranges
         self._table_tree = TokenAVL() # same as above for the table method
+        self.vocab = vocab
 
     def load(self, filename, wordbank_name=''):
         if wordbank_name and not wordbank_name.endswith('/'):
             wordbank_name += '/'
 
         with open(filename) as f:
-            next(f) # skip header line
-
             for line in f:
-                if line.startswith('#'):
+                if line.startswith('#'): # comment blank lines with #
                     continue
-                try:
+                elif not line.strip(): # skip blank lines
+                    continue
+                else:
                     location, source, word = line.strip().split('\t')
                     self.add(location, word, wordbank_name + source)
-                except ValueError:
-                    pass # blank line; skip
 
     def add(self, raw, plaintext, source=''):
-        '''add a word to the wordbank'''
+        '''add a word to the wordbank if it's not already there'''
         t = Token(raw, plaintext)
+
+        if t in self._dict:
+            return
+
         self._dict[t] = plaintext
         self._wordbank_source[t] = source
 
@@ -167,11 +179,11 @@ class Wordbank():
 
     def query_range(self, query_token):
         '''
-        Return the tokens on either side of `query_token` or `query_token` itself if it's in the wordbank
-        Both tokens are guaranteed to have plaintext that is not None
+        Return the tokens on either side of `query_token` that have plaintext that is not None
+        If `query_token` itself is in the wordbank, return it twice.
         '''
         if query_token.ciphertype is None:
-            return None
+            raise ValueError('query_token must use the table or dictionary cipher')
 
         if query_token.ciphertype == 'table':
             left, right = self._table_tree.find_neighbours(query_token)
@@ -199,9 +211,28 @@ class Wordbank():
 
         return left, right
 
-    def interpolate(self, query_token, vocab):
+    def get_anchors(self, query_token):
+        '''
+        Get the bounds on a modern dictionary and the approximate position of a word.
+        '''
+        if query_token.ciphertype is None:
+            raise ValueError('query token must use the table or dictionary cipher')
+        elif query_token in self._dict:
+            word_idx = self.vocab.lookup_word(self._dict[query_token])
+            return word_idx, word_idx
+        else:
+            left, right = self.query_range(query_token)
+            interpolated_relative_position = (int(query_token) - int(left)) / (int(right) - int(left)) # scaled 0 .. 1
+
+            modern_left = self.vocab.lookup_word(left.plaintext, fuzzy=True)
+            modern_right = self.vocab.lookup_word(right.plaintext, fuzzy=True, left=False)
+
+            return modern_left, modern_right, interpolated_relative_position
+
+    def interpolate(self, query_token):
         '''
         Get a best guess at the contents of query_token
+        Don't add it to the wordbank.
         Return a copy of the token 
         '''
 
@@ -211,11 +242,11 @@ class Wordbank():
             left, right = self.query_range(query_token)
             interpolated_relative_position = (int(query_token) - int(left)) / (int(right) - int(left)) # scaled 0 .. 1
 
-            modern_left = vocab.lookup_word(left.plaintext, fuzzy=True)
-            modern_right = vocab.lookup_word(right.plaintext, fuzzy=True, left=False)
+            modern_left = self.vocab.lookup_word(left.plaintext, fuzzy=True)
+            modern_right = self.vocab.lookup_word(right.plaintext, fuzzy=True, left=False)
 
             interpolated_position = round(modern_left + interpolated_relative_position * (modern_right - modern_left))
-            interpolated_plaintext = vocab.lookup_id(interpolated_position)
+            interpolated_plaintext = self.vocab.lookup_id(interpolated_position)
 
             t = Token(query_token.raw, plaintext=interpolated_plaintext, source='interpolate')
 
@@ -229,7 +260,7 @@ class Wordbank():
         '''Return a generator over all known plaintext words in the wordbank'''
         return self._dict.values()
 
-    def run(self, tokenized_ciphertext, interpolate=False, vocab=None, verbose=False):
+    def run(self, tokenized_ciphertext, interpolate=False, verbose=False):
         '''
         apply a single substitution pass on the cihpertext, and optionally an interpolation pass.
         call this after updating the wordbank
@@ -254,7 +285,7 @@ class Wordbank():
             return wordbanked_ct
         else:
             # apply a basic interpolation to make the text easier to read
-            deciphered_ct = [self.interpolate(token, vocab) if token.is_unk() else token for token in wordbanked_ct]
+            deciphered_ct = [self.interpolate(token) if token.is_unk() else token for token in wordbanked_ct]
 
             if verbose:
                 print('text after applying interpolation')

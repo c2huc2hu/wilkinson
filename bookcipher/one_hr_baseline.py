@@ -1,6 +1,6 @@
 from wordbank import Wordbank, Token
 from vocab import Vocab
-from passes import tokenize_ciphertext, add_frequency_attack
+from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass
 
 # One hour baseline
 
@@ -11,14 +11,12 @@ with open('data/unsolved.ciphers.1078') as fh:
     untokenized_ciphertext = fh.read()
     ciphertext = tokenize_ciphertext(untokenized_ciphertext)
 
-
-wordbank = Wordbank()
+vocab = Vocab('dict.modern')
+wordbank = Wordbank(vocab)
 wordbank.load('wordbanks/wordbank.miro')
 wordbank.load('wordbanks/wordbank.clean')
+wordbank.load('wordbanks/wordbank.2880')
 wordbank.load('wordbanks/wordbank.guess')
-vocab = Vocab('dict.modern')
-
-print(wordbank._dict)
 
 # apply the first two wordbanks
 ciphertext = wordbank.run(ciphertext)
@@ -26,8 +24,11 @@ ciphertext = wordbank.run(ciphertext)
 # apply a frequency attack
 # add_frequency_attack(wordbank, ciphertext)
 
+# do a beam search with a language model
+ciphertext = beam_search_pass(ciphertext, wordbank)
+
 # interpolate to make it readable
-message = wordbank.run(ciphertext, interpolate=True, vocab=vocab)
+message = wordbank.run(ciphertext, interpolate=True)
 
 
 
@@ -54,3 +55,5 @@ with open('output/visualize.html', 'w') as fh:
     fh.write(' '.join(token.to_html() for token in message))
 
     fh.write('</body>')
+
+print('done!')

@@ -1,7 +1,7 @@
 # Taken from our spell corrector
 
 import argparse
-from lattices import Lattice
+from .lattices import Lattice
 import math
 
 class Beam():
@@ -23,27 +23,40 @@ class LanguageModel():
         self.source = source
 
     def next_token(self, s):
+        '''Return a list of log-probabilities in the order given by the vocab'''
         pass
 
 def beam_search(source, lm, lattice, beam_width=8, alpha=1):
     lm.initialize(source)
-    beams = [Beam()]
+    beams = [Beam([])]
     for i in range(len(source)):
         # for beam in beams: print(beam)
         new_beams = []
         for beam in beams:
-            new_beams += _expand_beam(beam, lm, lattice, source[i], alpha)
+            new_beams.extend(_expand_beam2(beam, lm, lattice, source[i], alpha))
         beams = sorted(new_beams, key=lambda b: -b.log_prob)[:beam_width]
-    for beam in beams: print(beam)
+        for beam in beams: print(beam)
     return [beam.prediction for beam in beams]
 
 def _expand_beam(beam, lm, lattice, mistake_char, alpha):
     next_beams = []
-    word_probs = lm.next_token(beam.prediction)
+    word_probs = lm.next_token(beam.prediction) # prior
     for next_char in lattice.possible_substitutions(mistake_char):
-        lattice_prob = lattice.backward_probs(mistake_char, next_char)
+        lattice_prob = lattice.backward_probs(mistake_char, next_char) # likelihood
         lm_prob = float(word_probs[lm.vocab_indices.get(next_char, 0)])
         new_beam = Beam(beam.prediction + next_char, beam.lm_prob + alpha*lm_prob, beam.lattice_prob + lattice_prob)
+        next_beams.append(new_beam)
+    return next_beams
+
+def _expand_beam2(beam, lm, lattice, current_token, alpha):
+    '''Expand beam, jointly getting possible substitutions and their probabilites'''
+    next_beams = []
+    word_probs = lm.next_token(beam.prediction) # prior
+    for next_word, lattice_prob in lattice.possible_substitutions_and_probs(current_token): # get likelihood
+        # print('next word lattice prob', next_word, lattice_prob)
+        lm_prob = float(word_probs[lm.vocab_indices.get(next_word, -1)]) # prior. <unk> is at index -1
+
+        new_beam = Beam(beam.prediction + [next_word], beam.lm_prob + alpha*lm_prob, beam.lattice_prob + lattice_prob)
         next_beams.append(new_beam)
     return next_beams
 

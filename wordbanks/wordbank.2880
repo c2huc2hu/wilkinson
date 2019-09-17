@@ -1,0 +1,49 @@
+# The table wordbank in 2880 is compatible with the rest of the wordbanks,
+# even though the dictionary wordbank is not
+
+[167]^	2880	am
+# [177]^	2880	am?
+# [177]^	2880	are?
+[180]^	2880	am
+[183]^	2880	as
+[186]^	2880	at
+[201]^	2880	both
+[229]^	2880	been
+[244]^	2880	best
+[311]^	2880	but
+[433]^	2880	dear
+[452]^	2880	do
+[475]^	2880	due
+[491]^	2880	end
+[497]^	2880	fail
+[591]^	2880	give
+[597]^	2880	good
+[609]^	2880	great
+[628]^	2880	have
+[628]^	2880	has
+[629]^	2880	him
+[634]^	2880	hear
+[652]^	2880	home
+[659]^	2880	how
+[669]^	2880	if
+[688]^	2880	King
+[695]^	2880	know
+[701]^	2880	land
+[747]^	2880	made
+[759]^	2880	may
+[765]^	2880	might
+[777]^	2880	more
+[783]^	2880	must 
+[789]^	2880	new
+[790]^	2880	news
+[800]^	2880	now
+[804]^	2880	of
+[806]^	2880	old
+[807]^	2880	on
+[811]^	2880	our
+[816]^	2880	paid
+[821]^	2880	part
+# [931]^	2880	tell
+[952]^	2880	send
+[989]^	2880	so
+		

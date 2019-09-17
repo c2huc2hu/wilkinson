@@ -1,0 +1,7 @@
+# for tests. includes the first, last and some intermediate words
+
+[160]^	toy_wordbank	a
+[429]^	toy_wordbank	day
+[729]^	toy_wordbank	long
+[997]^	toy_wordbank	soon
+[1219]^	toy_wordbank	young

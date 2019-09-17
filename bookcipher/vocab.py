@@ -7,7 +7,7 @@ class Vocab():
         self.filename = filename
 
         self._vocab = {} # word -> index
-        self._inv_vocab = [] # index -> word, should be sorted by 
+        self._inv_vocab = [] # index -> word, should be sorted lexographically
         self.load(self.filename)
 
 
@@ -38,6 +38,7 @@ class Vocab():
         Find words from their position in the dictionary
 
         If `fuzzy`, either the position to the left or right of the word will be returned if the word is not in the dictionary
+        Return an integer
         '''
 
         if word in self._vocab:

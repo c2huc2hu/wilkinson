@@ -1,3 +1,5 @@
+# These should return lists of tokens
+
 import re
 from collections import Counter
 
@@ -53,5 +55,22 @@ def add_frequency_attack(wordbank, ciphertext):
                 break
 
 
-# bigram attack
-# get every word tha appears in a 
+from token_lattice import TokenLattice, TokenLanguageModel
+from language_models.beam_search import beam_search
+
+def beam_search_pass(ciphertext, wordbank, return_all=False, alpha=1, beam_width=8):
+    '''
+    Use a language model and do beam search
+
+    return_all - if true, return all results. otherwise return the best guess
+    '''
+
+    lattice = TokenLattice(wordbank)
+    lm = TokenLanguageModel(wordbank.vocab)
+
+    result = beam_search(ciphertext, lm, lattice, beam_width, alpha)
+
+    if return_all:
+        return result
+    else:
+        return result[0]

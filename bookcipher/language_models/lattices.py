@@ -4,9 +4,11 @@ import argparse
 import math
 import os
 import json
-from dataset import get_source_target_lines
+from .dataset import get_source_target_lines
 
 class Lattice():
+    '''Represents substitution probabilites in a string given the source. Insertions and deletions are not supported'''
+
     def __init__(self, train_files=None, topN=None, lattice_file=None):
         if train_files is not None:
             self.learn_alignments(train_files, topN)
@@ -38,11 +40,13 @@ class Lattice():
             self.alignments[source_char] = {t[0]: math.log(t[1]/correction_counts[t[0]]) for t in top_targets}
 
     def backward_probs(self, mistake_char, correction_char):
+        '''Log probability of correction_char given mistake_char, or decoding given the actual state'''
         if mistake_char in self.alignments:
             return self.alignments[mistake_char].get(correction_char, -1000)
         return -1000
 
     def possible_substitutions(self, mistake_char):
+        '''Return a list of possible candidates given an observed state. Basically a mask for the language model'''
         if mistake_char in self.alignments:
             return tuple(self.alignments[mistake_char].keys())
         else:
