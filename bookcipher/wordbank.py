@@ -146,6 +146,8 @@ class Wordbank():
                     location, source, word = line.strip().split('\t')
                     self.add(location, word, wordbank_name + source)
 
+        # verify that everything is in order
+
     def add(self, raw, plaintext, source=''):
         '''add a word to the wordbank if it's not already there'''
         t = Token(raw, plaintext)
@@ -156,16 +158,25 @@ class Wordbank():
         self._dict[t] = plaintext
         self._wordbank_source[t] = source
 
+        if t.ciphertype is not None:
+            try:
+                left, right = self.query_range(t)
+                if not(int(left) <= int(t) <= int(right)) or not(left.plaintext <= t.plaintext <= right.plaintext):  # "know" and "known" to take up consecutive slots
+                    raise ValueError('Error when inserting token {}, out of order'.format(repr(t)))
+            except IndexError as e:
+                pass # ignore errors from empty tree
+
         if t.ciphertype == 'table':
             self._table_tree.insert(t)
         elif t.ciphertype == 'dict':
             self._dict_tree.insert(t)
 
+
     # imaginary words that would go at the beginning and end of a dictionary
     left_dict_dummy = Token('1.[1]-', '-')
     right_dict_dummy = Token('780.[1]-', 'zzzzzzz')     # the last attested word is 44,312 = yourself. it will only affect words after "yourself" in the dictionary, so doesn't really matter
     left_table_dummy = Token('[160]^', '-')
-    right_table_dummy = Token('[1221]^', 'zzzzzzz')     # last attested alphabetical word is 1219 = young, after that it becomes a lookup table again
+    right_table_dummy = Token('[1220]^', 'zzzzzzz')     # last attested alphabetical word is 1219 = young, after that it becomes a lookup table again
 
     def apply(self, query_token):
         '''apply wordbank if the token is known'''
@@ -192,7 +203,7 @@ class Wordbank():
 
         # error handling for beginning or end of string
         if left is None and right is None:
-            raise ValueError('no tokens have been inserted')
+            raise IndexError('no tokens have been inserted')
         elif left is None:
             if query_token.ciphertype == 'table':
                 left = Wordbank.left_table_dummy

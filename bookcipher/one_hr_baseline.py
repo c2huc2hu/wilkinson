@@ -11,6 +11,9 @@ with open('data/unsolved.ciphers.1078') as fh:
     untokenized_ciphertext = fh.read()
     ciphertext = tokenize_ciphertext(untokenized_ciphertext)
 
+# TEMP
+# ciphertext = tokenize_ciphertext('501.[20]= [804]^ \n [1218]^ 140.[8]- [426]^')
+
 vocab = Vocab('dict.modern')
 wordbank = Wordbank(vocab)
 wordbank.load('wordbanks/wordbank.miro')
@@ -25,12 +28,15 @@ ciphertext = wordbank.run(ciphertext)
 # add_frequency_attack(wordbank, ciphertext)
 
 # do a beam search with a language model
-ciphertext = beam_search_pass(ciphertext, wordbank)
+decoded_text = beam_search_pass(ciphertext, wordbank, beam_width=1)
 
 # interpolate to make it readable
-message = wordbank.run(ciphertext, interpolate=True)
+# message = wordbank.run(ciphertext, interpolate=True)
 
 
+# join tokens to decoded_text
+for plaintext, token in zip(decoded_text, ciphertext):
+    token.plaintext = plaintext
 
 # super hacky html output
 import os

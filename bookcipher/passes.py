@@ -58,19 +58,23 @@ def add_frequency_attack(wordbank, ciphertext):
 from token_lattice import TokenLattice, TokenLanguageModel
 from language_models.beam_search import beam_search
 
-def beam_search_pass(ciphertext, wordbank, return_all=False, alpha=1, beam_width=8):
+def beam_search_pass(ciphertext, wordbank, alpha=1, beam_width=8):
     '''
     Use a language model and do beam search
+    Modifies ciphertext, and returns a reference to it
 
-    return_all - if true, return all results. otherwise return the best guess
+    ciphertext - a list of tokens. these tokens are modified
+    return - a list of tokens, i.e. `ciphertext` but modified
+
     '''
 
     lattice = TokenLattice(wordbank)
     lm = TokenLanguageModel(wordbank.vocab)
 
-    result = beam_search(ciphertext, lm, lattice, beam_width, alpha)
+    beams = beam_search(ciphertext, lm, lattice, beam_width, alpha)
+    best_result = beams[0]
 
-    if return_all:
-        return result
-    else:
-        return result[0]
+    # join tokens to decoded text
+    for token, word in zip(ciphertext, best_result):
+        token.plaintext = word
+    return ciphertext

@@ -5,7 +5,7 @@ import numpy as np
 from nltk.corpus import wordnet as wn # pattern's wordnet is just a wrapper around nltk, and doesn't support getting all POS
 from pattern.en import wordnet, pluralize, lexeme
 
-# python 3.7 hack: https://github.com/clips/pattern/issues/243#issuecomment-428328754
+# python 3.7 hack to initialize pattern: https://github.com/clips/pattern/issues/243#issuecomment-428328754
 try: lexeme('walk')
 except: pass
 
@@ -29,7 +29,7 @@ def inflect(word):
     if 'n' in pos:
         result.add(pluralize(word))
     if 'v' in pos:
-        # this might be overkill, as it returns all forms of the verb, e.g. lexeme('be') -> ['be', 'am', 'was', ... 'weren\'t']
+        # get all forms of the verb, e.g. lexeme('be') -> ['be', 'am', 'was', ... 'weren\'t']
         # but it's better to be overgeneral
         result.update(lexeme(word)) 
 
@@ -46,8 +46,21 @@ class TokenLattice(Lattice):
         # override some common words to reduce branching factor
         self.inflected_vocab.update({
             'a': ['a'],
+            'are': ['are'],
             'be': ['be', 'being', 'been'],
-            })
+            'being': ['be', 'being', 'been'],
+            'been': ['be', 'being', 'been'],
+            'is': ['is'],
+            'was': ['was', 'were'],
+            'were': ['was', 'were'],
+            'have': ['have', 'has', 'had', 'having'],
+            'having': ['have', 'has', 'had', 'having'],
+        })
+
+    def inflect(self, word):
+        if word not in self.inflected_vocab:
+            self.inflected_vocab[word] = inflect(word)
+        return self.inflected_vocab[word]
 
     def backward_probs(self, source_token, target_word):
         '''
@@ -109,7 +122,7 @@ class TokenLattice(Lattice):
     def possible_substitutions_and_probs(self, source_token):
         '''
         Return tuples (word, probability) to distribute probability mass over each inflected form
-        This is sligtly more efficient and prevents us from having to canonical-ize source_token
+        This is slightly more efficient and prevents us from having to canonical-ize source_token
 
         return: a generator that yields elements (word: string, log_probability: float)
         '''
@@ -118,16 +131,20 @@ class TokenLattice(Lattice):
             return ((source_token.plaintext, 0),)
         elif not source_token.is_unk():
             # return inflected forms
-            inflected_forms = self.inflected_vocab[source_token.plaintext]
-            return ((inflected_word, -np.log(len(inflected_forms))) for inflected_word in self.inflected_vocab[source_token.plaintext])
+            inflected_forms = self.inflect(source_token.plaintext)
+            # print('inflecting {} with possibilities: {}'.format(repr(source_token), inflected_forms))
+            return ((inflected_word, -np.log(len(inflected_forms))) for inflected_word in inflected_forms)
         else:
             # return everything in the vocab between the anchor points including inflected forms
             # note that we distribute probability mass equally over each of the inflected forms
             # this penalizes things with more forms (esp. irregular verbs)
             left_idx, right_idx, _ = self.wordbank.get_anchors(source_token)
-            result = [(inflected_word, self.backward_probs(source_token, raw_word) / len(self.inflected_vocab[raw_word]))
+
+            result = [(inflected_word, self.backward_probs(source_token, raw_word) / len(self.inflect(raw_word)))
                 for raw_word in self.vocab.words[left_idx:right_idx]
-                for inflected_word in self.inflected_vocab[raw_word]]
+                for inflected_word in self.inflect(raw_word)]
+
+            # print('branching from {} with possibilities: {}'.format(repr(source_token), [x[0] for x in result]))
             return result
 
 
@@ -148,6 +165,9 @@ class TokenLanguageModel(LanguageModel):
         # TODO: swap this for a real language model. this just penalizes length
         return [-len(x) for x in self.vocab]
 
+class UnigramLanguageModel(LanguageModel):
+    # todo: brown corpus unigram frequencies OR project gutenberg frequencies from nltk
+    pass
 
 
 if __name__ == '__main__':
@@ -173,4 +193,4 @@ if __name__ == '__main__':
 
     ct = [wb.apply(tok) for tok in ct]
     print(ct)
-    print('Best predictions (in order)', beam_search(ct, lm, lattice, alpha=1))
+    print('Best predictions (in order)', beam_search(ct, lm, lattice, alpha=1, beam_width=32))

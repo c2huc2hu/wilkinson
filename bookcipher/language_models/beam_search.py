@@ -35,7 +35,7 @@ def beam_search(source, lm, lattice, beam_width=8, alpha=1):
         for beam in beams:
             new_beams.extend(_expand_beam2(beam, lm, lattice, source[i], alpha))
         beams = sorted(new_beams, key=lambda b: -b.log_prob)[:beam_width]
-        for beam in beams: print(beam)
+        # for beam in beams: print(beam)
     return [beam.prediction for beam in beams]
 
 def _expand_beam(beam, lm, lattice, mistake_char, alpha):
@@ -49,7 +49,12 @@ def _expand_beam(beam, lm, lattice, mistake_char, alpha):
     return next_beams
 
 def _expand_beam2(beam, lm, lattice, current_token, alpha):
-    '''Expand beam, jointly getting possible substitutions and their probabilites'''
+    '''
+    Expand beam, jointly getting possible substitutions and their probabilites
+
+    beam.prediction is a list of strings, each corresponding to a token. need to preprocess them in the language model to remove
+    extra symbols, e.g. newlines, but they are retained so that we can match one-to-one to tokens
+    '''
     next_beams = []
     word_probs = lm.next_token(beam.prediction) # prior
     for next_word, lattice_prob in lattice.possible_substitutions_and_probs(current_token): # get likelihood
