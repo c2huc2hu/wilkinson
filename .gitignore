@@ -2,6 +2,9 @@
 *.ipynb
 
 *.py[cod]
+__pycache__
 
 output
 .xlsx
+.out
+.prof

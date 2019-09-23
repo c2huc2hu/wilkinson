@@ -1,6 +1,7 @@
 import itertools
 from scipy.stats import beta
 import numpy as np
+from functools import lru_cache
 
 from nltk.corpus import wordnet as wn # pattern's wordnet is just a wrapper around nltk, and doesn't support getting all POS
 from pattern.en import wordnet, pluralize, lexeme
@@ -55,6 +56,9 @@ class TokenLattice(Lattice):
             'were': ['was', 'were'],
             'have': ['have', 'has', 'had', 'having'],
             'having': ['have', 'has', 'had', 'having'],
+
+            # not inflected forms, but corrections to enable
+            'on': ['on', 'in'], # frequently see "in" where "on" should be, e.g. pg. 2880. this distinction can be hard
         })
 
     def inflect(self, word):
@@ -62,6 +66,7 @@ class TokenLattice(Lattice):
             self.inflected_vocab[word] = inflect(word)
         return self.inflected_vocab[word]
 
+    @lru_cache(512)
     def backward_probs(self, source_token, target_word):
         '''
         Return log(p(target_word|source_token))
@@ -87,18 +92,18 @@ class TokenLattice(Lattice):
         if scale == 0:
             raise ValueError('Found a token that can be deduced from wordbank. Did you forget to call wordbank.apply?')
         
-        # import pdb; pdb.set_trace()
-
         # parameterize a beta distribution with mean at the interpolated position and beam 
         b = 1 # parameterizes the sharpness of the distribution.
-                 # TODO: actually fit data to figure out what this should be
+              # TODO: actually fit data to figure out what this should be
         mean = interpolated_position
         a = (mean * b) / (1 - mean) # controls where the peak is
 
         # integrate probability mass
         target_idx = self.vocab.lookup_word(target_word)
+
         prob = beta.cdf((target_idx + 1 - left_idx) / scale, a=a, b=b) - beta.cdf((target_idx - left_idx) / scale, a=a, b=b)
-        return np.log(prob)
+
+        return np.log(prob) # np.log(0) warnings here are okay, because it just indicates very unlikely words
 
     def possible_substitutions(self, source_token):
         '''
@@ -118,7 +123,7 @@ class TokenLattice(Lattice):
             left_idx, right_idx, _ = self.wordbank.get_anchors(source_token)
             return itertools.chain(*self.inflected_vocab[left_idx:right_idx])
 
-    # TODO: LRU cache this?
+    @lru_cache(2) # since we process token-by-token, the LRU cache can be size 1
     def possible_substitutions_and_probs(self, source_token):
         '''
         Return tuples (word, probability) to distribute probability mass over each inflected form
@@ -133,22 +138,42 @@ class TokenLattice(Lattice):
             # return inflected forms
             inflected_forms = self.inflect(source_token.plaintext)
             # print('inflecting {} with possibilities: {}'.format(repr(source_token), inflected_forms))
-            return ((inflected_word, -np.log(len(inflected_forms))) for inflected_word in inflected_forms)
+            return [(inflected_word, -np.log(len(inflected_forms))) for inflected_word in inflected_forms]
         else:
             # return everything in the vocab between the anchor points including inflected forms
             # note that we distribute probability mass equally over each of the inflected forms
             # this penalizes things with more forms (esp. irregular verbs)
             left_idx, right_idx, _ = self.wordbank.get_anchors(source_token)
 
-            result = [(inflected_word, self.backward_probs(source_token, raw_word) / len(self.inflect(raw_word)))
+            # for raw_word in self.vocab.words[left_idx:right_idx]:
+            #     print(self.inflect(raw_word))
+
+            result = [(inflected_word, self.backward_probs(source_token, raw_word) - np.log(len(self.inflect(raw_word))))
                 for raw_word in self.vocab.words[left_idx:right_idx]
                 for inflected_word in self.inflect(raw_word)]
 
             # print('branching from {} with possibilities: {}'.format(repr(source_token), [x[0] for x in result]))
             return result
 
+    def dump_carmel_lattice(self, source, filename):
+        '''
+        dump a carmel lattice to a file
+    
+        e.g. 
+        0 1 a 0.01
+        0 1 b 0.02
+        '''
+        with open(filename, 'w') as fh:
+            print(len(source), file=fh)
+            for i, token in enumerate(source):
+                if not token.plaintext.strip():
+                    continue  # skip blank tokens
 
-class TokenLanguageModel(LanguageModel):
+                for next_word, lattice_prob in self.possible_substitutions_and_probs(token):
+                    print('({} ({} "{}" {}))'.format(i, i + 1, next_word, np.exp(lattice_prob)), file=fh)
+
+
+class LengthLanguageModel(LanguageModel):
     def __init__(self, vocab):
         '''
         vocab: pre-initialized instance of Vocab
@@ -164,10 +189,6 @@ class TokenLanguageModel(LanguageModel):
 
         # TODO: swap this for a real language model. this just penalizes length
         return [-len(x) for x in self.vocab]
-
-class UnigramLanguageModel(LanguageModel):
-    # todo: brown corpus unigram frequencies OR project gutenberg frequencies from nltk
-    pass
 
 
 if __name__ == '__main__':
@@ -188,7 +209,7 @@ if __name__ == '__main__':
     left, right = wb.query_range(tokenize_ciphertext('[161]^')[0])
     assert left.plaintext == 'a' and right.plaintext == 'day'
 
-    lm = TokenLanguageModel(v)
+    lm = LengthLanguageModel(v)
     lattice = TokenLattice(wb)
 
     ct = [wb.apply(tok) for tok in ct]

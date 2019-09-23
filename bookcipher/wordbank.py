@@ -104,7 +104,7 @@ class Token():
                 'literal': 'turquoise',
                 'clean_wordbank': 'lightblue',
                 'miro': 'skyblue',
-                '2880': 'deepskyblue',
+                '2880': 'lightskyblue',
                 'guess': 'limegreen',
                 'frequency_attack': 'gold',
                 # 'interpolate': 'darkgreen',

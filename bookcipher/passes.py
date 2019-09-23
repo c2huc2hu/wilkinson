@@ -55,8 +55,9 @@ def add_frequency_attack(wordbank, ciphertext):
                 break
 
 
-from token_lattice import TokenLattice, TokenLanguageModel
+from token_lattice import TokenLattice, LengthLanguageModel
 from language_models.beam_search import beam_search
+from language_models.unigram import UnigramLanguageModel, BigramLanguageModel
 
 def beam_search_pass(ciphertext, wordbank, alpha=1, beam_width=8):
     '''
@@ -69,7 +70,8 @@ def beam_search_pass(ciphertext, wordbank, alpha=1, beam_width=8):
     '''
 
     lattice = TokenLattice(wordbank)
-    lm = TokenLanguageModel(wordbank.vocab)
+    # lm = LengthLanguageModel(wordbank.vocab)
+    lm = UnigramLanguageModel(wordbank.vocab)
 
     beams = beam_search(ciphertext, lm, lattice, beam_width, alpha)
     best_result = beams[0]
@@ -78,3 +80,8 @@ def beam_search_pass(ciphertext, wordbank, alpha=1, beam_width=8):
     for token, word in zip(ciphertext, best_result):
         token.plaintext = word
     return ciphertext
+
+def dump_lattice(ciphertext, wordbank):
+    lattice = TokenLattice(wordbank)
+    lattice.dump_carmel_lattice(ciphertext, 'output/ciphertext.lattice')
+    print('done dumping')

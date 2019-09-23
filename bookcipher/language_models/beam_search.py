@@ -4,6 +4,7 @@ import argparse
 from .lattices import Lattice
 import math
 
+
 class Beam():
     def __init__(self, prediction='', lm_prob=0, lattice_prob=0):
         self.prediction = prediction
@@ -18,12 +19,16 @@ class LanguageModel():
     def __init__(self, vocab):
         self.vocab = vocab
         self.vocab_indices = {self.vocab[i]: i for i in range(len(self.vocab))}
+        self.unk = 0
 
     def initialize(self, source):
         self.source = source
 
     def next_token(self, s):
-        '''Return a list of log-probabilities in the order given by the vocab'''
+        '''
+        Return a list of log-probabilities in the order given by the vocab
+        P(x_n | x_1 ... x_{n-1}
+        '''
         pass
 
 def beam_search(source, lm, lattice, beam_width=8, alpha=1):
@@ -31,12 +36,15 @@ def beam_search(source, lm, lattice, beam_width=8, alpha=1):
     beams = [Beam([])]
     for i in range(len(source)):
         # for beam in beams: print(beam)
+        print('Beam iteration {}/{}'.format(i, len(source)))
+
         new_beams = []
         for beam in beams:
             new_beams.extend(_expand_beam2(beam, lm, lattice, source[i], alpha))
         beams = sorted(new_beams, key=lambda b: -b.log_prob)[:beam_width]
         # for beam in beams: print(beam)
     return [beam.prediction for beam in beams]
+
 
 def _expand_beam(beam, lm, lattice, mistake_char, alpha):
     next_beams = []
@@ -55,8 +63,43 @@ def _expand_beam2(beam, lm, lattice, current_token, alpha):
     beam.prediction is a list of strings, each corresponding to a token. need to preprocess them in the language model to remove
     extra symbols, e.g. newlines, but they are retained so that we can match one-to-one to tokens
     '''
+    
+    # skip tokens that are just composed of whitespace
+    if not current_token.plaintext.strip():
+        beam.prediction += [current_token.plaintext]
+        return [beam]
+
     next_beams = []
     word_probs = lm.next_token(beam.prediction) # prior
+
+    for next_word, lattice_prob in lattice.possible_substitutions_and_probs(current_token): # get likelihood
+        # print('next word lattice prob', next_word, lattice_prob)
+        lm_prob = float(word_probs[lm.vocab_indices.get(next_word, lm.unk)]) # prior. <unk> is at index -1
+
+        new_beam = Beam(beam.prediction + [next_word], beam.lm_prob + alpha*lm_prob, beam.lattice_prob + lattice_prob)
+        next_beams.append(new_beam)
+    return next_beams
+
+def beam_search3(source, lm, lattice, beam_width=8, alpha=1):
+    lm.initialize(source)
+    beams = [Beam('')]
+    for i in range(len(source)):
+        # for beam in beams: print(beam)
+        print('Beam iteration {}/{}'.format(i, len(source)))
+
+        new_beams = []
+        for beam in beams:
+            new_beams.extend(_expand_beam3(beam, lm, lattice, source[i], alpha))
+        beams = sorted(new_beams, key=lambda b: -b.log_prob)[:beam_width]
+        # for beam in beams: print(beam)
+    return [beam.prediction for beam in beams]
+
+def _expand_beam3(beam, lm, lattice, current_token, alpha):
+    '''Expand beam, recomputing language model score at each step'''
+
+    next_beams = []
+    word_probs = lm.next_token(beam.prediction) # prior
+
     for next_word, lattice_prob in lattice.possible_substitutions_and_probs(current_token): # get likelihood
         # print('next word lattice prob', next_word, lattice_prob)
         lm_prob = float(word_probs[lm.vocab_indices.get(next_word, -1)]) # prior. <unk> is at index -1
@@ -64,6 +107,7 @@ def _expand_beam2(beam, lm, lattice, current_token, alpha):
         new_beam = Beam(beam.prediction + [next_word], beam.lm_prob + alpha*lm_prob, beam.lattice_prob + lattice_prob)
         next_beams.append(new_beam)
     return next_beams
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Make lattice of common corrections")

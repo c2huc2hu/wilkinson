@@ -71,6 +71,7 @@ class Lattice():
                             f.write(" {} {}".format(target, targets[target]))
                         f.write("\n")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Make lattice of common corrections")
     parser.add_argument("--input_files", type=str, nargs='+')
