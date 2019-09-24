@@ -155,13 +155,58 @@ class TokenLattice(Lattice):
             # print('branching from {} with possibilities: {}'.format(repr(source_token), [x[0] for x in result]))
             return result
 
+
+    def integrate_prob(self, prefix, source_token):
+        '''
+        Get log probability mass $$\\sum_{word starts with prefix} P(prefix | token)$$,
+        i.e. the sum of everything in `self.wordbank.vocab` for all words starts with `prefix`
+
+        If `prefix` isn't in the dictionary, give it 1/2 the probability mass of where it would be found
+
+        Note: probabilities won't sum to 1, because GPT's vocab >> the dictionary's vocab
+
+        `prefix`: a string
+
+        return: a float
+        '''
+
+        # known tokens are added explicitly ahead of the beam search
+        if source_token.ciphertype is None:
+            return -np.inf
+
+        prefix = prefix.lower()
+
+        # assign the word probability based on where it is in the dictionary
+        prefix_left, prefix_right = self.vocab.lookup_prefix(prefix)
+
+        # prefix is not in dictionary, will assign it half the probabilty mass of the space it occupies, centred around where it should be
+        if prefix_left == prefix_right:
+            prefix_left, prefix_right = prefix_left + 1/4, prefix_left + 3/4
+
+        # find anchor points, i.e. the neighbours of source_token in the wilkinson dictionary
+        anchor_left, anchor_right, interpolated_position = self.wordbank.get_anchors(source_token)    
+        scale = anchor_right - anchor_left
+        if scale == 0:
+            raise ValueError('Found a token that can be deduced from wordbank. Did you forget to call wordbank.apply?')
+
+        # parameterize a beta distribution with mean at the interpolated position and beam 
+        b = 1 # parameterizes the sharpness of the distribution.
+              # TODO: actually fit data to figure out what this should be
+        mean = interpolated_position
+        a = (mean * b) / (1 - mean) # controls where the peak is
+
+        # give probability mass
+        prob = beta.cdf((prefix_right - anchor_left) / scale, a=a, b=b) - beta.cdf((prefix_left - anchor_left) / scale, a=a, b=b) # todo: vectorize this
+        lattice_prob = np.log(prob)
+        return lattice_prob # log prob
+
     def dump_carmel_lattice(self, source, filename):
         '''
         dump a carmel lattice to a file
     
         e.g. 
-        0 1 a 0.01
-        0 1 b 0.02
+        0 (1 "a" 0.01)
+        0 (1 "b" 0.02)
         '''
         with open(filename, 'w') as fh:
             print(len(source), file=fh)
@@ -180,6 +225,7 @@ class LengthLanguageModel(LanguageModel):
         '''
         self.vocab = vocab.words # index -> word
         self.vocab_indices = vocab._vocab # word -> index
+        self.unk = 0
 
     def initialize(self, source):
         pass
@@ -187,7 +233,6 @@ class LengthLanguageModel(LanguageModel):
     def next_token(self, s):
         '''return log probabilites over the vocab'''
 
-        # TODO: swap this for a real language model. this just penalizes length
         return [-len(x) for x in self.vocab]
 
 
@@ -195,6 +240,7 @@ if __name__ == '__main__':
     from passes import tokenize_ciphertext
     from vocab import Vocab
     from wordbank import Wordbank
+    from language_models.unigram import SlowGPTLanguageModel
 
     # load data
     v = Vocab('wordbanks/vocab.toy')
@@ -209,9 +255,10 @@ if __name__ == '__main__':
     left, right = wb.query_range(tokenize_ciphertext('[161]^')[0])
     assert left.plaintext == 'a' and right.plaintext == 'day'
 
-    lm = LengthLanguageModel(v)
+    # lm = LengthLanguageModel(v)
+    lm = SlowGPTLanguageModel(v)
     lattice = TokenLattice(wb)
 
     ct = [wb.apply(tok) for tok in ct]
     print(ct)
-    print('Best predictions (in order)', beam_search(ct, lm, lattice, alpha=1, beam_width=32))
+    print('Best predictions (in order)', beam_search(ct, lm, lattice, alpha=1, beam_width=256))

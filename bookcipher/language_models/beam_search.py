@@ -3,6 +3,7 @@
 import argparse
 from .lattices import Lattice
 import math
+from datetime import datetime
 
 
 class Beam():
@@ -36,13 +37,13 @@ def beam_search(source, lm, lattice, beam_width=8, alpha=1):
     beams = [Beam([])]
     for i in range(len(source)):
         # for beam in beams: print(beam)
-        print('Beam iteration {}/{}'.format(i, len(source)))
+        print('Beam iteration {}/{} @ {}'.format(i, len(source), datetime.now().time()))
 
         new_beams = []
         for beam in beams:
             new_beams.extend(_expand_beam2(beam, lm, lattice, source[i], alpha))
         beams = sorted(new_beams, key=lambda b: -b.log_prob)[:beam_width]
-        # for beam in beams: print(beam)
+        for beam in beams: print(beam)
     return [beam.prediction for beam in beams]
 
 

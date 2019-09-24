@@ -49,7 +49,23 @@ class Vocab():
             bisect_fcn = bisect_left if left else bisect_right # which side to err on if the word isn't found
             return bisect_fcn(self._inv_vocab, word)
 
+    def lookup_prefix(self, prefix):
+        '''
+        Return the range of word indices that start with prefix. 
+        Left index is inclusive, right index is not, similar to slicing, i.e. vocab.words[slice(lookup_prefix(prefix))] -> all words that start with prefix
+
+        Example:
+        Say vocab = ['a', 'aback', 'abacus', 'abandon', 'abandoned', 'abandonment']
+        lookup_range('abacus') -> (2, 3)  # only 'abacus' matches
+        lookup_range('abandon') -> (3, 6) # 'abandon' through 'abandonment' match
+        '''
+        prefix = prefix.lower()
+        return bisect_left(self._inv_vocab, prefix), bisect_right(self._inv_vocab, prefix + '\uffff')
+
     @property
     def words(self):
         '''Return a list of words'''
         return self._inv_vocab
+
+    def __len__(self):
+        return len(self._inv_vocab)

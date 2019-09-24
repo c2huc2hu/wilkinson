@@ -6,5 +6,5 @@ __pycache__
 
 output
 .xlsx
-.out
-.prof
+*.out
+*.prof
