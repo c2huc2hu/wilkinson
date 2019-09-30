@@ -1,14 +1,15 @@
 import itertools
 from scipy.stats import beta
+from scipy.stats import triang
 import numpy as np
 from functools import lru_cache
 
 from nltk.corpus import wordnet as wn # pattern's wordnet is just a wrapper around nltk, and doesn't support getting all POS
-from pattern.en import wordnet, pluralize, lexeme
+# from pattern.en import wordnet, pluralize, lexeme
 
-# python 3.7 hack to initialize pattern: https://github.com/clips/pattern/issues/243#issuecomment-428328754
-try: lexeme('walk')
-except: pass
+# # python 3.7 hack to initialize pattern: https://github.com/clips/pattern/issues/243#issuecomment-428328754
+# try: lexeme('walk')
+# except: pass
 
 
 from language_models.lattices import Lattice
@@ -42,7 +43,8 @@ class TokenLattice(Lattice):
         self.vocab = wordbank.vocab
 
         # precompute inflected forms of every word in the vocab
-        self.inflected_vocab = {word: inflect(word) for word in self.vocab.words}
+        self.inflected_vocab = {}
+        # self.inflected_vocab = {word: inflect(word) for word in self.vocab.words}
 
         # override some common words to reduce branching factor
         self.inflected_vocab.update({
@@ -85,7 +87,13 @@ class TokenLattice(Lattice):
         if not source_token.is_unk(self.wordbank):
             return 0
         
+        # Positions in a modern dictionary
         left_idx, right_idx, interpolated_position = self.wordbank.get_anchors(source_token)
+
+        # TEMP: uniform distribution because this takes forever
+        target_idx = self.vocab.lookup_word(target_word)
+        return np.log((left_idx <= target_word <= right_idx) / (right_idx - left_idx))
+        # END TEMP
 
         # scale things
         scale = right_idx - left_idx
@@ -183,11 +191,15 @@ class TokenLattice(Lattice):
         if prefix_left == prefix_right:
             prefix_left, prefix_right = prefix_left + 1/4, prefix_left + 3/4
 
-        # find anchor points, i.e. the neighbours of source_token in the wilkinson dictionary
-        anchor_left, anchor_right, interpolated_position = self.wordbank.get_anchors(source_token)    
+        # find anchor points, i.e. the bounds on source_token in the modern dictionary
+        anchor_left, anchor_right, interpolated_position = self.wordbank.get_anchors(source_token)
         scale = anchor_right - anchor_left
         if scale == 0:
             raise ValueError('Found a token that can be deduced from wordbank. Did you forget to call wordbank.apply?')
+
+        # TEMP; uniform
+        return -0.5
+        # END TEMP
 
         # parameterize a beta distribution with mean at the interpolated position and beam 
         b = 1 # parameterizes the sharpness of the distribution.
@@ -196,7 +208,11 @@ class TokenLattice(Lattice):
         a = (mean * b) / (1 - mean) # controls where the peak is
 
         # give probability mass
-        prob = beta.cdf((prefix_right - anchor_left) / scale, a=a, b=b) - beta.cdf((prefix_left - anchor_left) / scale, a=a, b=b) # todo: vectorize this
+
+        # this is slow until i vectorize. use a triangular distribution instead
+        # prob = beta.cdf((prefix_right - anchor_left) / scale, a=a, b=b) - beta.cdf((prefix_left - anchor_left) / scale, a=a, b=b) # todo: vectorize this
+        prob = triang.cdf((prefix_right - anchor_left) / scale, c=interpolated_position) - triang.cdf((prefix_left - anchor_left) / scale, c=interpolated_position)
+
         lattice_prob = np.log(prob)
         return lattice_prob # log prob
 

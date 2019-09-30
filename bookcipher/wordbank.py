@@ -1,7 +1,7 @@
 # functions for handling wordbanks
 
 import re
-from functools import total_ordering
+from functools import total_ordering, lru_cache
 
 from avltree import TokenAVL
 
@@ -222,6 +222,7 @@ class Wordbank():
 
         return left, right
 
+    @lru_cache()
     def get_anchors(self, query_token):
         '''
         Get the bounds on a modern dictionary and the approximate position of a word.
