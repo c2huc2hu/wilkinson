@@ -1,14 +1,14 @@
-
-
 from wordbank import Wordbank, Token
 from vocab import Vocab
 from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
 
-# One hour baseline
+from word_beamsearch import token_beam_search, GPTLanguageModel, TokenLattice
 
-## Debugging string
-# ciphertext = '[556]^ 586.[26]- Ferdinand 2 [678]^ 95 ? [1235]^ y ? [433]^ [79]^ [664]^'
+BEAM_WIDTH = 64
 
+print(f'Config: {BEAM_WIDTH}')
+
+# Runtime
 with open('data/unsolved.ciphers.1078.clean') as fh:
     untokenized_ciphertext = fh.read()
     ciphertext = tokenize_ciphertext(untokenized_ciphertext)
@@ -22,26 +22,18 @@ wordbank.load('wordbanks/wordbank.miro')
 wordbank.load('wordbanks/wordbank.clean')
 wordbank.load('wordbanks/wordbank.2880')
 wordbank.load('wordbanks/wordbank.guess')
+print('done loading dictionary')
 
 # apply the first two wordbanks
-ciphertext = wordbank.run(ciphertext)
+ciphertext = [wordbank.apply(token) for token in ciphertext]
 
-# apply a frequency attack
-# add_frequency_attack(wordbank, ciphertext)
+lm = GPTLanguageModel(v)
+lattice = TokenLattice(wb)
+beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
 
-
-# dump_lattice(ciphertext, wordbank)
-
-
-#####################################################################################
-# Routines that consume all tokens and should only be used at the end of a pipeline #
-#####################################################################################
-
-# do a beam search with a language model
-message = beam_search_pass(ciphertext, wordbank, beam_width=128)
-
-# interpolate to make it readable
-# message = wordbank.run(ciphertext, interpolate=True)
+print('\n\n================ DONE ===============\n\n\n')
+for beam in beams:
+    print(str(beam))
 
 
 # super hacky html output

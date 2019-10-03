@@ -49,7 +49,7 @@ def inflect(word):
         # but it's better to be overgeneral
         result.update(lexeme(word)) 
 
-    return list(result)
+    return sorted(list(result)) # sort so that order is deterministic
 
 
 class Vocab():

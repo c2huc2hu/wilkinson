@@ -58,7 +58,7 @@ class TokenLattice():
         # vocab._inflected_inv_vocab, probability_buckets
 
         result = []
-        for raw_word, inflected_forms, prob in zip(self.vocab.words, self.vocab._inflected_inv_vocab, probability_buckets):
+        for raw_word, inflected_forms, prob in zip(self.vocab.words[start:end], self.vocab._inflected_inv_vocab[start:end], probability_buckets):
             productive_penalty = np.log(len(inflected_forms)) # distribute probability over all inflected forms
             # print(f'Distributing {prob} probability mass from word {raw_word} to {len(inflected_forms)} buckets ({prob - productive_penalty})')
             # print('Forms: ')
@@ -68,6 +68,23 @@ class TokenLattice():
             # print('')
 
         return result
+
+    def to_carmel_lattice(self, source, filename):
+        with open(filename, 'w') as fh:
+            print(len(source), file=fh)
+
+            for i, token in enumerate(source):
+                if not token.plaintext.strip():
+                    continue  # skip blank tokens
+                elif token.ciphertype is None:
+                    words = [token.plaintext]
+                    start = end = 0 # these don't matter
+                else:
+                    start, end = self.possible_words(token)
+                    words = self.vocab.inflected_words[self.vocab.to_flat_idx(start):self.vocab.to_flat_idx(end)]
+
+                for next_word, lattice_prob in zip(words, self.batch_prob(start, end, token)):
+                    print('({} ({} "{}" {}))'.format(i, i + 1, next_word, np.exp(lattice_prob)), file=fh)
 
 class GPTLanguageModel():
     def __init__(self, vocab):
@@ -88,7 +105,7 @@ class GPTLanguageModel():
 
         # Can't run GPT on sentences with length 1. Make up a super-generic history
         if len(sentence) <= 1:
-            # sentence = [self.tokenizer.encode(self.tokenizer.unk_token)] * (2 - len(sentence)) + sentence
+            # sentence = self.tokenizer.encode(self.tokenizer.unk_token) * (2 - len(sentence)) + sentence
             sentence = self.tokenizer.encode('Yes.') + sentence
 
         if start == end:
@@ -104,7 +121,6 @@ class GPTLanguageModel():
 
         # Pad tokenized_input with zeros
         word_lengths = np.array([len(word) for word in tokenized_input]) # number of wordpieces in each word
-        # word_lengths = [len(word) for word in self.vocab._inflected_inv_vocab[start:end]] # number of wordpieces in each word
         np_input = np.zeros((len(word_lengths), max(word_lengths)), dtype=np.int32)
         for i, sent in enumerate(tokenized_input):
             np_input[i,:len(tokenized_input[i])] = tokenized_input[i]
@@ -116,6 +132,8 @@ class GPTLanguageModel():
         past_tensor = torch.tensor([sentence])
         past_tensor = past_tensor.expand(tensor_input.shape[0], -1)
         tensor_input = torch.cat((past_tensor, tensor_input), dim=1)
+
+        print(tensor_input)
 
         # Run the model with each new possibility (batched)
         logits, present = self.model(tensor_input)
@@ -129,14 +147,13 @@ class GPTLanguageModel():
 
         # compute mean loss
         with torch.no_grad():
-            mask = (sentence_lengths < np.arange(max(sentence_lengths) - 1)[:,None]).T
+            mask = ~(sentence_lengths <= np.arange(1,max(sentence_lengths))[:,None]).T
             np_losses = losses.detach().numpy()
-            cross_entropies = ((~mask) * np_losses).sum(axis=1)
+            cross_entropies = ((mask) * np_losses).sum(axis=1)
 
         # for flat_i, (original_word, tokens, prob) in enumerate(zip(original_words, tokenized_input, cross_entropies)):
-        #     print(f'Language model gives {prob} probability to word {original_word} (raw: {tokens})')
+        #     print(f'Language model gives {prob} probability to word {original_word} (raw: {tokens}) with context {sentence}')
 
-        # return lm probabilities
         return -cross_entropies, tokenized_input, original_words
 
 
@@ -170,10 +187,15 @@ def token_beam_search(source, lm, lattice, beam_width=8):
         if source[i].ciphertype is None:
             if source[i].plaintext.isalnum():
                 # add numbers and letters to the beam, but not tokens
-                pass
+                for beam in beams:
+                    beam.prediction.extend(lm.tokenizer.encode(source[i].plaintext))
             else:
                 # add unk to the beam
-                pass
+                for beam in beams:
+                    beam.prediction.extend(lm.tokenizer.encode(lm.tokenizer.unk_token))
+
+            # Doesn't affect the score
+            continue
 
         new_beams = []
         start, end = lattice.possible_words(source[i])
@@ -228,9 +250,14 @@ if __name__ == '__main__':
     # lm.batch_score(lm.tokenizer.encode('A cat sees the'), 0,6)
     # quit()
 
-    ct = tokenize_ciphertext('[1078]^ [330]^ [960]^ [160]^ [490]^') # given the toy vocab, should give "the cat sees the dog"
-    # ct = tokenize_ciphertext('the [330]^ [960]^ [160]^ [490]^')
+    # ct = tokenize_ciphertext('[1078]^ [330]^ [960]^ [160]^ [490]^') # given the toy vocab, should give "the cat sees the dog"
+    ct = tokenize_ciphertext('the [330]^ [960]^ [160]^ [490]^')
     ct = [wb.apply(tok) for tok in ct]
-    beams = token_beam_search(ct, lm, lattice, beam_width=8)
+
+
+    lattice.to_carmel_lattice(ct, 'output/lattice.toy')
+
+    beams = token_beam_search(ct, lm, lattice, beam_width=64)
+    print('\n\n================ DONE ===============\n\n\n')
     for beam in beams:
         print(str(beam))
