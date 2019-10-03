@@ -27,8 +27,8 @@ print('done loading dictionary')
 # apply the first two wordbanks
 ciphertext = [wordbank.apply(token) for token in ciphertext]
 
-lm = GPTLanguageModel(v)
-lattice = TokenLattice(wb)
+lm = GPTLanguageModel(vocab)
+lattice = TokenLattice(wordbank)
 beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
 
 print('\n\n================ DONE ===============\n\n\n')

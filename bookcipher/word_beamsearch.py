@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from tqdm import tqdm
 import numpy as np
 from scipy.stats import beta
 
@@ -128,12 +129,15 @@ class GPTLanguageModel():
 
         sentence_lengths = word_lengths + len(sentence)
 
+        if max(sentence_lengths) >= 512:
+            start_overflow = max(sentence_lengths) - 512 # drop everything but the last 512 tokens because GPT can't handle that
+            tensor_input = tensor_input[:,start_overflow:]
+        sentence_lengths -= drop_prefix
+
         # prepend past to each context. can't figure out how to cache past and expand dimensions properly
         past_tensor = torch.tensor([sentence])
         past_tensor = past_tensor.expand(tensor_input.shape[0], -1)
         tensor_input = torch.cat((past_tensor, tensor_input), dim=1)
-
-        print(tensor_input)
 
         # Run the model with each new possibility (batched)
         logits, present = self.model(tensor_input)
@@ -199,11 +203,10 @@ def token_beam_search(source, lm, lattice, beam_width=8):
 
         new_beams = []
         start, end = lattice.possible_words(source[i])
+        lattice_probs = lattice.batch_prob(start, end, source[i])
 
-        for beam in beams:
+        for beam in tqdm(beams):
             # expand beam
-
-            lattice_probs = lattice.batch_prob(start, end, source[i])
             lm_probs, token_lists, inflected_words = lm.batch_score(beam.prediction, start, end)
 
             for word, tokens, lattice_prob, lm_prob in zip(inflected_words, token_lists, lattice_probs, lm_probs):
@@ -212,10 +215,10 @@ def token_beam_search(source, lm, lattice, beam_width=8):
                 # print(f'Proposing new word {word} with probability {new_beam.lm_prob} + {new_beam.lattice_prob} = {new_beam.log_prob}')
 
         beams = sorted(new_beams, key=lambda beam: beam.log_prob, reverse=True)
-        print('Beams:')
+        print('Best Beams:')
+        beams = beams[:beam_width]
         for beam in beams:
             print(str(beam))
-        beams = beams[:beam_width]
     return beams
 
 def test(lm, lattice):
