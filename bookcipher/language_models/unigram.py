@@ -70,6 +70,16 @@ class SlowGPTLanguageModel(LanguageModel):
 
         self.score_calls = 0
 
+        # pretokenize each word in vocab
+        self.inflected_vocab = [self.vocab.inflect(word) for word in vocab]
+        self.tokenized_inflected_vocab = map(self.tokenizer.encode, itertools.chain(*self.inflected_vocab)) # list of ints
+        print('TIV', self.tokenized_inflected_vocab[:10])
+
+        # mapping vocab -> tokenized_inflected_vocab
+        self.vocab_to_inflected_index = list(itertools.accumulate(map(len, self.inflected_vocab)))
+        self.vocab_to_inflected_index.insert(0, 0)
+        self.vocab_to_inflected_index.pop()
+
     def score(self, sentence):
         self.score_calls += 1
         if self.score_calls % 1000 == 0:
@@ -83,9 +93,56 @@ class SlowGPTLanguageModel(LanguageModel):
             loss=self.model(tensor_input, labels=tensor_input)
             return -loss[0]
 
+    def next_token_batch(self, sentence, start, end):
+        '''
+        score inflected forms from start to end. start and end are indices in vocab
+
+        return zip(probabilites, inflected words)
+        '''
+
+        # Use cached vocab
+        inflected_vocab = self.inflected_vocab[self.vocab_to_inflected_index[start]:self.vocab_to_inflected_index[end]]
+        tokenized_input = self.tokenized_inflected_vocab[self.vocab_to_inflected_index[start]:self.vocab_to_inflected_index[end]]
+        sentence_length = [len(arr) for arr in tokenized_input]
+
+        # Can't run GPT on sentences with length 1
+        if len(sentence) <= 1:
+            return zip(inflected_vocab, itertools.repeat(0))
+
+        # Run the model once to get the history
+        old_logits, past = model(sentence)
+        
+        # pad sentences with zeros
+        np_input = np.zeros((len(sentence_length), max(sentence_length)), dtype=np.int32)
+        for i, sent in enumerate(tokenized_input):
+            np_input[i,:len(tokenized_input[i])] = tokenized_input[i]
+        tensor_input = torch.tensor(np_input, dtype=torch.long)
+
+
+        # Run the model with the new stuff
+        model(tokenized_input, past=past)
+
+        loss_fcn = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
+        losses = loss_fcn(
+            torch.cat(torch.unsqueeze(logits[:,-1,:], 1), logits[:,:-1,:]).transpose(1,2), # concat old loss to new loss
+            tensor_input
+        )
+
+        # compute mean loss
+        with torch.no_grad():
+            mask = (sentence_length < np.arange(max(sentence_length) - 1)[:,None]).T
+            np_losses = losses.detach().numpy()
+            cross_entropies = (((~mask) * np_losses).sum(axis=1) / sentence_length)
+        return zip(tokenized_input, cross_entropies)
+
     def next_token(self, s):
         '''Get the probabilities of the next wordpiece'''
 
         result = [self.score(' '.join(s) + ' ' + word) for word in self.vocab.words]
-        return result            
+        return result
 
+
+if __name__ == '__main__':
+    v = Vocab('wordbanks/vocab.toy')
+    lm = SlowGPTLanguageModel(v)
+    lm.next_token_batch([1,2,3])

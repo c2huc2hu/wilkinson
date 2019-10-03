@@ -101,10 +101,12 @@ def _expand_beam3(beam, lm, lattice, current_token, alpha):
     next_beams = []
     word_probs = lm.next_token(beam.prediction) # prior
 
-    for next_word, lattice_prob in lattice.possible_substitutions_and_probs(current_token): # get likelihood
-        # print('next word lattice prob', next_word, lattice_prob)
-        lm_prob = float(word_probs[lm.vocab_indices.get(next_word, -1)]) # prior. <unk> is at index -1
+    possible_substitutions = lattice.possible_substitutions_and_probs(current_token)
 
+    word_probs = lm.next_token(beam.prediction, )
+
+    for next_word, lattice_prob in possible_substitutions:
+        lm_prob = float(word_probs[lm.vocab_indices.get(next_word, -1)]) # prior. <unk> is at index -1
         new_beam = Beam(beam.prediction + [next_word], beam.lm_prob + alpha*lm_prob, beam.lattice_prob + lattice_prob)
         next_beams.append(new_beam)
     return next_beams

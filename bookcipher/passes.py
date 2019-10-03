@@ -55,32 +55,42 @@ def add_frequency_attack(wordbank, ciphertext):
                 break
 
 
-from token_lattice import TokenLattice, LengthLanguageModel
-from language_models.beam_search import beam_search
-from language_models.unigram import UnigramLanguageModel, BigramLanguageModel, SlowGPTLanguageModel
+from token_lattice import TokenLattice # , LengthLanguageModel
+# from language_models.beam_search import beam_search
+# from language_models.unigram import UnigramLanguageModel, BigramLanguageModel, SlowGPTLanguageModel
+
+from wordpiece_beamsearch import beam_search, GPTLanguageModel
 
 def beam_search_pass(ciphertext, wordbank, alpha=1, beam_width=8):
-    '''
-    Use a language model and do beam search
-    Modifies ciphertext, and returns a reference to it
-
-    ciphertext - a list of tokens. these tokens are modified
-    return - a list of tokens, i.e. `ciphertext` but modified
-
-    '''
-
     lattice = TokenLattice(wordbank)
-    # lm = LengthLanguageModel(wordbank.vocab)
-    # lm = UnigramLanguageModel(wordbank.vocab)
-    lm = SlowGPTLanguageModel()
+    lm = GPTLanguageModel()
 
     beams = beam_search(ciphertext, lm, lattice, beam_width, alpha)
     best_result = beams[0]
+    return best_result
 
-    # join tokens to decoded text
-    for token, word in zip(ciphertext, best_result):
-        token.plaintext = word
-    return ciphertext
+# def beam_search_pass(ciphertext, wordbank, alpha=1, beam_width=8):
+#     '''
+#     Use a language model and do beam search
+#     Modifies ciphertext, and returns a reference to it
+
+#     ciphertext - a list of tokens. these tokens are modified
+#     return - a list of tokens, i.e. `ciphertext` but modified
+
+#     '''
+
+#     lattice = TokenLattice(wordbank)
+#     # lm = LengthLanguageModel(wordbank.vocab)
+#     # lm = UnigramLanguageModel(wordbank.vocab)
+#     lm = SlowGPTLanguageModel()
+
+#     beams = beam_search(ciphertext, lm, lattice, beam_width, alpha)
+#     best_result = beams[0]
+
+#     # join tokens to decoded text
+#     for token, word in zip(ciphertext, best_result):
+#         token.plaintext = word
+#     return ciphertext
 
 def dump_lattice(ciphertext, wordbank):
     lattice = TokenLattice(wordbank)

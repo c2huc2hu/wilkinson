@@ -1,72 +1,18 @@
 import itertools
 from scipy.stats import beta
-from scipy.stats import triang
+# from scipy.stats import triang
 import numpy as np
 from functools import lru_cache
 
-from nltk.corpus import wordnet as wn # pattern's wordnet is just a wrapper around nltk, and doesn't support getting all POS
-# from pattern.en import wordnet, pluralize, lexeme
-
-# # python 3.7 hack to initialize pattern: https://github.com/clips/pattern/issues/243#issuecomment-428328754
-# try: lexeme('walk')
-# except: pass
-
-
 from language_models.lattices import Lattice
 from language_models.beam_search import LanguageModel, beam_search
+from vocab import inflect
 
-def inflect(word):
-    '''
-    word: a string
-    return a list of inflected forms of a word as
-    '''
-
-    # get all possible parts of speech for a word from wordnet
-    synsets = wn.synsets(word)
-    pos = {lemma.pos() for lemma in synsets}
-
-    # decline/ conjugate word
-    result = {word}
-
-    if 'n' in pos:
-        result.add(pluralize(word))
-    if 'v' in pos:
-        # get all forms of the verb, e.g. lexeme('be') -> ['be', 'am', 'was', ... 'weren\'t']
-        # but it's better to be overgeneral
-        result.update(lexeme(word)) 
-
-    return list(result)
 
 class TokenLattice(Lattice):
     def __init__(self, wordbank):
         self.wordbank = wordbank
         self.vocab = wordbank.vocab
-
-        # precompute inflected forms of every word in the vocab
-        self.inflected_vocab = {}
-        # self.inflected_vocab = {word: inflect(word) for word in self.vocab.words}
-
-        # override some common words to reduce branching factor
-        self.inflected_vocab.update({
-            'a': ['a'],
-            'are': ['are'],
-            'be': ['be', 'being', 'been'],
-            'being': ['be', 'being', 'been'],
-            'been': ['be', 'being', 'been'],
-            'is': ['is'],
-            'was': ['was', 'were'],
-            'were': ['was', 'were'],
-            'have': ['have', 'has', 'had', 'having'],
-            'having': ['have', 'has', 'had', 'having'],
-
-            # not inflected forms, but corrections to enable
-            'on': ['on', 'in'], # frequently see "in" where "on" should be, e.g. pg. 2880. this distinction can be hard
-        })
-
-    def inflect(self, word):
-        if word not in self.inflected_vocab:
-            self.inflected_vocab[word] = inflect(word)
-        return self.inflected_vocab[word]
 
     @lru_cache(512)
     def backward_probs(self, source_token, target_word):
@@ -125,11 +71,11 @@ class TokenLattice(Lattice):
             return source_token.plaintext
         elif not source_token.is_unk():
             # return inflected forms
-            return self.inflected_vocab[source_token.plaintext]
+            return inflect(source_token.plaintext)
         else:
             # return everything in the vocab between the anchor points including inflected forms
             left_idx, right_idx, _ = self.wordbank.get_anchors(source_token)
-            return itertools.chain(*self.inflected_vocab[left_idx:right_idx])
+            return itertools.chain(*vocab.inflected_words[left_idx:right_idx])
 
     @lru_cache(2) # since we process token-by-token, the LRU cache can be size 1
     def possible_substitutions_and_probs(self, source_token):
@@ -144,7 +90,7 @@ class TokenLattice(Lattice):
             return ((source_token.plaintext, 0),)
         elif not source_token.is_unk():
             # return inflected forms
-            inflected_forms = self.inflect(source_token.plaintext)
+            inflected_forms = vocab.inflect(source_token.plaintext)
             # print('inflecting {} with possibilities: {}'.format(repr(source_token), inflected_forms))
             return [(inflected_word, -np.log(len(inflected_forms))) for inflected_word in inflected_forms]
         else:
@@ -158,7 +104,7 @@ class TokenLattice(Lattice):
 
             result = [(inflected_word, self.backward_probs(source_token, raw_word) - np.log(len(self.inflect(raw_word))))
                 for raw_word in self.vocab.words[left_idx:right_idx]
-                for inflected_word in self.inflect(raw_word)]
+                for inflected_word in vocab.inflect(raw_word)]
 
             # print('branching from {} with possibilities: {}'.format(repr(source_token), [x[0] for x in result]))
             return result
@@ -171,7 +117,7 @@ class TokenLattice(Lattice):
 
         If `prefix` isn't in the dictionary, give it 1/2 the probability mass of where it would be found
 
-        Note: probabilities won't sum to 1, because GPT's vocab >> the dictionary's vocab
+        Note: probabilities won't sum to 1, because GPT's vocab size > the dictionary's vocab size
 
         `prefix`: a string
 
@@ -197,10 +143,6 @@ class TokenLattice(Lattice):
         if scale == 0:
             raise ValueError('Found a token that can be deduced from wordbank. Did you forget to call wordbank.apply?')
 
-        # TEMP; uniform
-        return -0.5
-        # END TEMP
-
         # parameterize a beta distribution with mean at the interpolated position and beam 
         b = 1 # parameterizes the sharpness of the distribution.
               # TODO: actually fit data to figure out what this should be
@@ -215,6 +157,49 @@ class TokenLattice(Lattice):
 
         lattice_prob = np.log(prob)
         return lattice_prob # log prob
+
+
+    def integrate_probs_batch(self, prefixes, source_token):
+        '''
+        Prefixes is a list of prefixes so that everything can be vectorized.
+        This results in a huge speedup because of numpy vectorization (>10x speedup)
+
+        TODO: Prefixes are constant for word starts, can cache those to ~halve the runtime
+        '''
+
+        if source_token.ciphertype is None:
+            return -np.inf
+
+        # find anchor points, i.e. the bounds on source_token in the modern dictionary
+        anchor_left, anchor_right, mean = self.wordbank.get_anchors(source_token)
+        scale = anchor_right - anchor_left
+        if scale == 0:
+            raise ValueError('Found a token that can be deduced from wordbank. Did you forget to call wordbank.apply?')
+
+        prefixes = [prefix.lower() for prefix in prefixes]
+
+        # assign the words' probability based on where it is in the dictionary
+        prefixes_left = np.zeros(len(prefixes))
+        prefixes_right = np.zeros(len(prefixes))
+        for i in range(len(prefixes)):
+            prefix_left, prefix_right = self.vocab.lookup_prefix(prefixes[i])
+
+            # prefix is not in dictionary, will assign it half the probabilty mass of the space it occupies, centred around where it should be
+            if prefix_left == prefix_right:
+                prefix_left, prefix_right = prefix_left + 1/4, prefix_left + 3/4
+
+            prefixes_left[i] = prefix_left
+            prefixes_right[i] = prefix_right
+
+        b = 1 # parameterizes the sharpness of the distribution. todo: actually fit data to find out what this should be
+        a = (mean * b) / (1 - mean) # controls where the peak is
+
+        # give probability distribution
+        prob = beta.cdf((prefixes_right - anchor_left) / scale, a=a, b=b) - beta.cdf((prefixes_left - anchor_left) / scale, a=a, b=b)
+        lattice_prob = np.log(prob)
+
+        return lattice_prob # log prob
+
 
     def dump_carmel_lattice(self, source, filename):
         '''

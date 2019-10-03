@@ -231,7 +231,7 @@ class Wordbank():
             raise ValueError('query token must use the table or dictionary cipher')
         elif query_token in self._dict:
             word_idx = self.vocab.lookup_word(self._dict[query_token])
-            return word_idx, word_idx
+            return word_idx, word_idx, 0
         else:
             left, right = self.query_range(query_token)
             interpolated_relative_position = (int(query_token) - int(left)) / (int(right) - int(left)) # scaled 0 .. 1
