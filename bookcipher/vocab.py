@@ -89,7 +89,7 @@ class Vocab():
         self._flat_index = list(itertools.accumulate(map(len, self._inflected_inv_vocab)))
         self._flat_index.insert(0, 0)
 
-        self._vocab['{unk}'] = len(self._vocab)
+        self._vocab['{unk}'] = len(self._vocab) # curly braces so it sorts last lexographically
         self._inv_vocab.append('{unk}')
 
 
