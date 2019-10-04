@@ -132,7 +132,7 @@ class GPTLanguageModel():
         if max(sentence_lengths) >= 512:
             start_overflow = max(sentence_lengths) - 512 # drop everything but the last 512 tokens because GPT can't handle that
             tensor_input = tensor_input[:,start_overflow:]
-        sentence_lengths -= drop_prefix
+            sentence_lengths -= start_overflow
 
         # prepend past to each context. can't figure out how to cache past and expand dimensions properly
         past_tensor = torch.tensor([sentence])
@@ -193,6 +193,8 @@ def token_beam_search(source, lm, lattice, beam_width=8):
                 # add numbers and letters to the beam, but not tokens
                 for beam in beams:
                     beam.prediction.extend(lm.tokenizer.encode(source[i].plaintext))
+            elif source[i].plaintext.isspace():
+                pass # skip whitespace
             else:
                 # add unk to the beam
                 for beam in beams:
@@ -254,7 +256,10 @@ if __name__ == '__main__':
     # quit()
 
     # ct = tokenize_ciphertext('[1078]^ [330]^ [960]^ [160]^ [490]^') # given the toy vocab, should give "the cat sees the dog"
-    ct = tokenize_ciphertext('the [330]^ [960]^ [160]^ [490]^')
+    # ct = tokenize_ciphertext('the [330]^ [960]^ [160]^ [490]^\n with the')
+
+    ct = tokenize_ciphertext('''[556]^ Ferdinand 2 [678]^ 95 [1235]^ [433]^ [79]^ [664]^ 
+  [1218]^  [807]^ [313]^ [1078]^ [804]^ ''')
     ct = [wb.apply(tok) for tok in ct]
 
 
