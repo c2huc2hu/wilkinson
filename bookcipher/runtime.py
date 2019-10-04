@@ -9,7 +9,7 @@ BEAM_WIDTH = 64
 print(f'Config: {BEAM_WIDTH}')
 
 # Runtime
-with open('data/unsolved.ciphers.1078.clean') as fh:
+with open('data/unsolved.ciphers.accuarcy') as fh:
     untokenized_ciphertext = fh.read()
     ciphertext = tokenize_ciphertext(untokenized_ciphertext)
 
