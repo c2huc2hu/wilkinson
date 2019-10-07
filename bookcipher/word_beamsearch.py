@@ -207,6 +207,9 @@ def token_beam_search(source, lm, lattice, beam_width=8):
         start, end = lattice.possible_words(source[i])
         lattice_probs = lattice.batch_prob(start, end, source[i])
 
+        import pdb
+        pdb.set_trace()
+
         for beam in tqdm(beams):
             # expand beam
             lm_probs, token_lists, inflected_words = lm.batch_score(beam.prediction, start, end)

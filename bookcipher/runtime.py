@@ -9,7 +9,7 @@ BEAM_WIDTH = 64
 print(f'Config: {BEAM_WIDTH}')
 
 # Runtime
-with open('data/unsolved.ciphers.accuarcy') as fh:
+with open('data/unsolved.ciphers.accuracy') as fh:
     untokenized_ciphertext = fh.read()
     ciphertext = tokenize_ciphertext(untokenized_ciphertext)
 
@@ -22,7 +22,7 @@ wordbank.load('wordbanks/wordbank.miro')
 wordbank.load('wordbanks/wordbank.clean')
 wordbank.load('wordbanks/wordbank.2880')
 wordbank.load('wordbanks/wordbank.guess')
-print('done loading dictionary')
+print('done loading dictionary and wordbanks')
 
 # apply the first two wordbanks
 ciphertext = [wordbank.apply(token) for token in ciphertext]
