@@ -16,6 +16,8 @@ exceptions = {
     'be': ['be', 'being', 'been'],
     'being': ['be', 'being', 'been'],
     'been': ['be', 'being', 'been'],
+    'he': ['he', 'him', 'his'],
+    'i': ['I', 'me'], # use lowercase i in vocab search, but uppercase for language modelling
     'is': ['is'],
     'was': ['was', 'were'],
     'were': ['was', 'were'],
