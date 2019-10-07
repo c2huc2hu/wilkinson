@@ -91,8 +91,10 @@ class GPTLanguageModel():
     def __init__(self, vocab):
         self.vocab = vocab
 
-        self.model = GPT2LMHeadModel.from_pretrained('gpt2')
-        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+        self.device = torch.device("cuda" if torch.cuda.is_available()  else "cpu")
+        self.model = GPT2LMHeadModel.from_pretrained('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
+        self.tokenizer = GPT2Tokenizer.from_pretrained('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
+        self.model.to(self.device)
 
         Beam.tokenizer = self.tokenizer
 
@@ -100,19 +102,22 @@ class GPTLanguageModel():
 
         # pretokenize inflected vocab
         self.tokenized_inflected_words = [self.tokenizer.encode(word) for word in vocab.inflected_words]
+        self.eos = self.tokenizer.encode(self.tokenizer.eos_token)[0]
 
     def batch_score(self, sentence, start, end):
         '''Score adding each word in vocab.words to the language model'''
 
-        # Can't run GPT on sentences with length 1. Make up a super-generic history
+        # Can't run GPT oen sentences with length 1. Make up a super-generic history
         if len(sentence) <= 1:
             # sentence = self.tokenizer.encode(self.tokenizer.unk_token) * (2 - len(sentence)) + sentence
             sentence = self.tokenizer.encode('Yes.') + sentence
 
         if start == end:
             # Word is known, only try variations of it
+            # Bug: known words that aren't in vocab won't get caught here. This is easy to validate that it won't happen before running, but should be explicitly checked
+            flat_start = self.vocab.to_flat_idx(start)
             original_words = self.vocab._inflected_inv_vocab[start]
-            tokenized_input = self.tokenized_inflected_words[start:start+len(original_words)]
+            tokenized_input = self.tokenized_inflected_words[flat_start:flat_start+len(original_words)]
         else:
             flat_start = self.vocab.to_flat_idx(start)
             flat_end = self.vocab.to_flat_idx(end)
@@ -125,35 +130,43 @@ class GPTLanguageModel():
         np_input = np.zeros((len(word_lengths), max(word_lengths)), dtype=np.int32)
         for i, sent in enumerate(tokenized_input):
             np_input[i,:len(tokenized_input[i])] = tokenized_input[i]
-        tensor_input = torch.tensor(np_input, dtype=torch.long)
 
         sentence_lengths = word_lengths + len(sentence)
 
         if max(sentence_lengths) >= 512:
             start_overflow = max(sentence_lengths) - 512 # drop everything but the last 512 tokens because GPT can't handle that
-            tensor_input = tensor_input[:,start_overflow:]
+            np_input = np_input[:,start_overflow:]
             sentence_lengths -= start_overflow
 
-        # prepend past to each context. can't figure out how to cache past and expand dimensions properly
-        past_tensor = torch.tensor([sentence])
-        past_tensor = past_tensor.expand(tensor_input.shape[0], -1)
-        tensor_input = torch.cat((past_tensor, tensor_input), dim=1)
+        batch_size = 128 # batch up compute so we don't run out of GPU memory
+        cross_entropies = np.zeros(np_input.shape[0])
 
-        # Run the model with each new possibility (batched)
-        logits, present = self.model(tensor_input)
+        for batch_start in range(0, np_input.shape[0], batch_size):
+            batch_lengths = sentence_lengths[batch_start:batch_start+batch_size]
+            batch_inputs = np_input[batch_start:batch_start+batch_size]
 
-        # Manually calculate loss for each thing
-        loss_fcn = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
-        losses = loss_fcn(
-            logits[:,:-1,:].transpose(1,2),
-            tensor_input[:,1:]
-        )
+            with torch.no_grad(): 
+                # prepend past to each context. can't figure out how to cache past and expand dimensions properly
+                tensor_input = torch.tensor(batch_inputs, dtype=torch.long, device=self.device)
+                past_tensor = torch.tensor([sentence], device=self.device)
+                past_tensor = past_tensor.expand(batch_lengths.shape[0], -1)
+                tensor_input = torch.cat((past_tensor, tensor_input), dim=1)
 
-        # compute mean loss
-        with torch.no_grad():
-            mask = ~(sentence_lengths <= np.arange(1,max(sentence_lengths))[:,None]).T
-            np_losses = losses.detach().numpy()
-            cross_entropies = ((mask) * np_losses).sum(axis=1)
+                # Run the model with each new possibility (batched)
+                logits, present = self.model(tensor_input)
+
+                # Manually calculate loss for each thing
+                loss_fcn = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
+                losses = loss_fcn(
+                    logits[:,:-1,:].transpose(1,2),
+                    tensor_input[:,1:]
+                )
+
+                # compute mean loss
+                # TODO: possible optimization: move this onto GPU. torch doesn't support newaxis broadcasting, so not sure if it would help
+                mask = ~(batch_lengths <= np.arange(1,max(sentence_lengths))[:,None]).T
+                np_losses = losses.detach().cpu().numpy()
+                cross_entropies[batch_start:batch_start+batch_size] = ((mask) * np_losses).sum(axis=1)
 
         # for flat_i, (original_word, tokens, prob) in enumerate(zip(original_words, tokenized_input, cross_entropies)):
         #     print(f'Language model gives {prob} probability to word {original_word} (raw: {tokens}) with context {sentence}')
@@ -182,7 +195,7 @@ class Beam():
 
 def token_beam_search(source, lm, lattice, beam_width=8):
     '''Return beams sorted best to worst'''
-    beams = [Beam([])]
+    beams = [Beam([lm.eos])]
 
     for i in range(len(source)):
         print('Beam iteration {}/{} @ {}'.format(i, len(source), datetime.now().time()))
@@ -205,6 +218,7 @@ def token_beam_search(source, lm, lattice, beam_width=8):
 
         new_beams = []
         start, end = lattice.possible_words(source[i])
+        print('Start, end', start, end)
         lattice_probs = lattice.batch_prob(start, end, source[i])
 
         for beam in tqdm(beams):

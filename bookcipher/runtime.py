@@ -4,12 +4,12 @@ from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass, 
 
 from word_beamsearch import token_beam_search, GPTLanguageModel, TokenLattice
 
-BEAM_WIDTH = 64
+BEAM_WIDTH = 2
 
 print(f'Config: {BEAM_WIDTH}')
 
 # Runtime
-with open('data/unsolved.ciphers.accuarcy') as fh:
+with open('data/unsolved.ciphers.accuracy') as fh:
     untokenized_ciphertext = fh.read()
     ciphertext = tokenize_ciphertext(untokenized_ciphertext)
 
@@ -26,15 +26,17 @@ print('done loading dictionary')
 
 # apply the first two wordbanks
 ciphertext = [wordbank.apply(token) for token in ciphertext]
+print(ciphertext)
 
 lm = GPTLanguageModel(vocab)
 lattice = TokenLattice(wordbank)
 beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
 
 print('\n\n================ DONE ===============\n\n\n')
-for beam in beams:
+for beam in beam_result:
     print(str(beam))
 
+message = lm.tokenizer.decode(beam[0])
 
 # super hacky html output
 import os
