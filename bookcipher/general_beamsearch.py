@@ -117,15 +117,15 @@ class UnigramLanguageModel(LanguageModel):
         probabilities = np.log(probabilities /probabilities.sum())
         return [LMScore(tokens=[word], score=prob) for word, prob in zip(words, probabilities)]
 
-class GPTLanguageModel(LanguageModel):
-    def __init__(self):
-        from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
-        import torch
-        import torch.nn.functional as F
+from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
+import torch
+import torch.nn.functional as F
 
+class GPTLanguageModel(LanguageModel):
+    def __init__(self, model_path='gpt2', tokenizer_path='gpt2'):
         self.device = torch.device("cuda" if torch.cuda.is_available()  else "cpu")
-        self.model = GPT2LMHeadModel.from_pretrained('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
-        self.tokenizer = GPT2Tokenizer.from_pretrained('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
+        self.model = GPT2LMHeadModel.from_pretrained(model_path) # default loads from huggingface AWS servers. can cache if behind a firewall
+        self.tokenizer = GPT2Tokenizer.from_pretrained(tokenizer_path)
         self.model.eval() # set model to eval mode because we're not fine tuning
         Beam.tokenizer = self.tokenizer
 

@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='Solve a bookcipher')
 parser.add_argument('-b', '--beam-width', nargs='?', default=2, help='width of beam search. runtime scales linearly', type=int)
 parser.add_argument('source_file', metavar='source-file', nargs='?', help='source file to decode')
 parser.add_argument('gold_file', metavar='gold-file', nargs='?', help='reference translation for scoring accuracy')
-parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'unigram', 'length', 'none'])
+parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'none'])
 args = parser.parse_args()
 
 if args.source_file is None:
@@ -28,6 +28,11 @@ with open(args.source_file) as fh:
 # ciphertext = tokenize_ciphertext('501.[20]= [804]^ \n [1218]^ 140.[8]- [426]^')
 
 vocab = Vocab('dict.modern')
+
+from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
+import torch
+import torch.nn.functional as F
+
 wordbank = Wordbank(vocab)
 wordbank.load('wordbanks/wordbank.miro')
 wordbank.load('wordbanks/wordbank.clean')
@@ -44,7 +49,9 @@ print(ciphertext)
 # beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
 
 if args.language_model == 'gpt2':
-    lm = GPTLanguageModel()
+    lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
+elif args.language_model == 'gpt2-large':
+    lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large')
     lattice = WilkinsonLattice(ciphertext, wordbank)
 elif args.language_model == 'unigram':
     lm = UnigramLanguageModel()
