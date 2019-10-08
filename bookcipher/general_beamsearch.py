@@ -117,12 +117,12 @@ class UnigramLanguageModel(LanguageModel):
         probabilities = np.log(probabilities /probabilities.sum())
         return [LMScore(tokens=[word], score=prob) for word, prob in zip(words, probabilities)]
 
-from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
-import torch
-import torch.nn.functional as F
-
 class GPTLanguageModel(LanguageModel):
     def __init__(self):
+        from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
+        import torch
+        import torch.nn.functional as F
+
         self.device = torch.device("cuda" if torch.cuda.is_available()  else "cpu")
         self.model = GPT2LMHeadModel.from_pretrained('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
         self.tokenizer = GPT2Tokenizer.from_pretrained('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')

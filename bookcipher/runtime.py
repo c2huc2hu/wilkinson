@@ -2,22 +2,25 @@ from wordbank import Wordbank, Token
 from vocab import Vocab
 from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
 
-# from word_beamsearch import token_beam_search, GPTLanguageModel, TokenLattice
 from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel, UnigramLanguageModel
-from wilkinson_lattice import WilkinsonLattice
+from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
 
+# Load config
 import argparse
 parser = argparse.ArgumentParser(description='Solve a bookcipher')
-parser.add_argument('-b', '--beam-width', help='width of beam search. runtime scales linearly')
-parser.add_argument('source-file', help='source file to decode')
-parser.add_argument('gold-file', help='reference translation for scoring accuracy')
+parser.add_argument('-b', '--beam-width', nargs='?', default=2, help='width of beam search. runtime scales linearly', type=int)
+parser.add_argument('source_file', metavar='source-file', nargs='?', help='source file to decode')
+parser.add_argument('gold_file', metavar='gold-file', nargs='?', help='reference translation for scoring accuracy')
+parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'unigram', 'length', 'none'])
+args = parser.parse_args()
 
-BEAM_WIDTH = 2
-
-print(f'Config: {BEAM_WIDTH}')
+if args.source_file is None:
+    args.source_file = 'data/unsolved.ciphers.accuracy'
+    args.gold_file = 'data/unsolved.ciphers.accuracy.gold'
+print('Config:', args)
 
 # Runtime
-with open('data/unsolved.ciphers.accuracy') as fh:
+with open(args.source_file) as fh:
     untokenized_ciphertext = fh.read()
     ciphertext = tokenize_ciphertext(untokenized_ciphertext)
 
@@ -40,15 +43,27 @@ print(ciphertext)
 # lattice = TokenLattice(wordbank)
 # beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
 
-# lm = GPTLanguageModel()
-lm = UnigramLanguageModel()
-# lm = LengthLanguageModel()
-lattice = WilkinsonLattice(ciphertext, wordbank)
+if args.language_model == 'gpt2':
+    lm = GPTLanguageModel()
+    lattice = WilkinsonLattice(ciphertext, wordbank)
+elif args.language_model == 'unigram':
+    lm = UnigramLanguageModel()
+    lattice = WilkinsonLattice(ciphertext, wordbank)
+elif args.language_model == 'length':
+    lm = LengthLanguageModel()
+    lattice = WilkinsonLattice(ciphertext, wordbank)
+elif args.language_model == 'none':
+    lm = LengthLanguageModel()
+    lattice = NoSubstitutionLattice(ciphertext)
+    args.beam_width = 1
+else:
+    raise ValueError('Invalid language model', args.language_model)
 
-lattice.to_carmel_lattice('output/lattices/unsolved.accuracy.lattice')
-print('saved lattice to file')
+if args.language_model != 'none':
+    lattice.to_carmel_lattice('output/lattices/unsolved.accuracy.lattice')
+    print('saved lattice to file')
 
-beam_result = beam_search(lm, lattice, beam_width=BEAM_WIDTH)
+beam_result = beam_search(lm, lattice, beam_width=args.beam_width)
 
 print('\n\n================ DONE ===============\n\n\n')
 for beam in beam_result:
@@ -56,18 +71,18 @@ for beam in beam_result:
 
 message = lm.decode(beam_result[0].prediction)
 
-with open('data/unsolved.ciphers.accuracy.gold') as fh:
-    gold_text = fh.read()
-    gold_tokens = gold_text.split()
+if args.gold_file is not None:
+    with open(args.gold_file) as fh:
+        gold_text = fh.read()
+        gold_tokens = gold_text.split()
 
-message_tokens = message.split()
-import nltk
-accuracy = nltk.edit_distance(message_tokens, gold_tokens)
-print('Edit distance', accuracy)
+    message_tokens = message.split()
+    import nltk
+    accuracy = nltk.edit_distance(message_tokens, gold_tokens)
+    print('Edit distance', accuracy)
 
-quit()
-
-
+print('done')
+quit(0)
 
 # super hacky html output
 import os

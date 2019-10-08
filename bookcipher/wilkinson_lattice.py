@@ -67,6 +67,32 @@ class WilkinsonLattice(Lattice):
 
         return result
 
+class NoSubstitutionLattice(Lattice):
+    def __init__(self, source):
+        self.source = source
+
+        # parse lattice into general Lattice format
+        self.lattice = defaultdict(lambda: defaultdict(list))
+
+        for i, token in enumerate(source):
+            self.lattice[i][i+1] = self._batch_probs(token)
+
+        self.start_state = 0
+        self.final_state = i + 1
+
+    def _batch_probs(self, source_token):
+        '''
+        Return a list of LatticeEdges (word, lattice_probability), only using what's provided 
+        '''
+
+        if source_token.plaintext == 'i':
+            return [LatticeEdge('I', 0)]
+        elif source_token.plaintext.isspace():
+            return [LatticeEdge('', 0)]
+        else:
+            return [LatticeEdge(source_token.plaintext, 0)]
+
+
 if __name__ == '__main__':
     lm = GPTLanguageModel(vocab)
     lattice = TokenLattice(wordbank)
