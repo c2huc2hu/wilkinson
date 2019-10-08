@@ -12,7 +12,7 @@ except: pass
 # override some common words to reduce branching factor
 exceptions = {
     'a': ['a', 'an'],
-    'are': ['are'],
+    'are': ['are', 'am'],
     'be': ['be', 'being', 'been'],
     'being': ['be', 'being', 'been'],
     'been': ['be', 'being', 'been'],

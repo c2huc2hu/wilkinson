@@ -2,7 +2,9 @@ from wordbank import Wordbank, Token
 from vocab import Vocab
 from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
 
-from word_beamsearch import token_beam_search, GPTLanguageModel, TokenLattice
+# from word_beamsearch import token_beam_search, GPTLanguageModel, TokenLattice
+from general_beamsearch import beam_search, GPTLanguageModel
+from wilkinson_lattice import WilkinsonLattice
 
 BEAM_WIDTH = 2
 
@@ -28,9 +30,17 @@ print('done loading dictionary and wordbanks')
 ciphertext = [wordbank.apply(token) for token in ciphertext]
 print(ciphertext)
 
-lm = GPTLanguageModel(vocab)
-lattice = TokenLattice(wordbank)
-beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
+# lm = GPTLanguageModel(vocab)
+# lattice = TokenLattice(wordbank)
+# beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
+
+lm = GPTLanguageModel()
+lattice = WilkinsonLattice(ciphertext, wordbank)
+
+lattice.to_carmel_lattice('lattices/unsolved.accuracy.lattice')
+print('saved lattice to file')
+
+beam_result = beam_search(lm, lattice, beam_width=BEAM_WIDTH)
 
 print('\n\n================ DONE ===============\n\n\n')
 for beam in beam_result:

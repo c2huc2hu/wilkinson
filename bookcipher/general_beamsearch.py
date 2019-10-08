@@ -65,7 +65,7 @@ class Lattice():
             for from_state in sorted(self.lattice, key=lambda from_state: from_state == self.start_state): # put the start state first
                 for to_state in self.possible_to_states(from_state):
                     for (label, prob) in self.possible_edges(from_state, to_state):
-                        print('({} ({} "{}" {}))'.format(from_state, to_state, label, math.exp(prob)))
+                        print('({} ({} "{}" {}))'.format(from_state, to_state, label, math.exp(prob)), file=fh)
 
     @property
     def n_states(self):
@@ -176,8 +176,6 @@ class GPTLanguageModel(LanguageModel):
                 # for flat_i, (original_word, tokens, prob) in enumerate(zip(original_words, tokenized_input, cross_entropies)):
                 #     print(f'Language model gives {prob} probability to word {original_word} (raw: {tokens}) with context {sentence}')
 
-        import pdb
-        pdb.set_trace()
         return [LMScore(tokens=tokens, score=lm_prob) for tokens, lm_prob in zip(tokenized_input, -cross_entropies)]
 
 class Beam():
@@ -260,6 +258,7 @@ def beam_search(lm, lattice, beam_width=8):
         # print('Best Beams:')
         # for beam in beams:
         #     print(str(beam))
+    # print('=========================')
     return beams
 
 def test():
@@ -284,7 +283,7 @@ def test():
     l2 = Lattice()
     l2.from_carmel_lattice('lattices/test.lattice')
     gpt = GPTLanguageModel()
-    beams = beam_search(gpt, l2)
+    beams = beam_search(gpt, l2, beam_width=2)
     for b in beams:
         print(str(b))
 
