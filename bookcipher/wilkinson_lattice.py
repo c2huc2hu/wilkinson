@@ -13,11 +13,14 @@ class WilkinsonLattice(Lattice):
         # parse lattice into general Lattice format
         self.lattice = defaultdict(lambda: defaultdict(list))
 
-        for i, token in enumerate(source):
-            self.lattice[i][i+1] = self._batch_probs(token)
+        i = 0
+        for token in source:
+            if not token.plaintext.isspace(): # don't load space tokens
+                self.lattice[i][i+1] = self._batch_probs(token)
+                i += 1
 
         self.start_state = 0
-        self.final_state = i + 1
+        self.final_state = i
 
     def _batch_probs(self, source_token):
         '''
@@ -29,8 +32,8 @@ class WilkinsonLattice(Lattice):
             # TODO: inflect depending on plaintext
             if source_token.plaintext.isspace():
                 return [LatticeEdge('', 0)] # ignore empty tokens
-            else:
-                return [LatticeEdge(source_token.plaintext, 0)]
+            else: # condition over the whole output space
+                return [LatticeEdge(word, -np.log(len(self.vocab.inflected_words))) for word in self.vocab.inflected_words]
         # no point in assigning probabilities to known words
         elif not source_token.is_unk(self.wordbank):
             inflected_forms = inflect(source_token.plaintext)
@@ -74,11 +77,14 @@ class NoSubstitutionLattice(Lattice):
         # parse lattice into general Lattice format
         self.lattice = defaultdict(lambda: defaultdict(list))
 
-        for i, token in enumerate(source):
-            self.lattice[i][i+1] = self._batch_probs(token)
+        i = 0
+        for token in source:
+            if not token.plaintext.isspace(): # don't load space tokens
+                self.lattice[i][i+1] = self._batch_probs(token)
+                i += 1
 
         self.start_state = 0
-        self.final_state = i + 1
+        self.final_state = i
 
     def _batch_probs(self, source_token):
         '''
