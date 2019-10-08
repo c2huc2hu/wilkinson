@@ -101,11 +101,8 @@ class LengthLanguageModel(LanguageModel):
 class UnigramLanguageModel(LanguageModel):
     '''Unigram probabilites from the Gutenberg corpus from NLTK'''
 
-    def __init__(self, vocab):
-        self.vocab = vocab.words
-        self.vocab_indices = vocab._vocab
-        self.unk = -1
-
+    def __init__(self):
+        import nltk
         nltk.download('gutenberg')
         self.counter = Counter(nltk.corpus.gutenberg.words())
 
@@ -118,7 +115,7 @@ class UnigramLanguageModel(LanguageModel):
     def score(self, context, words):
         probabilities = np.array([-self.counter[word] for word in words])
         probabilities = np.log(probabilities /probabilities.sum())
-        return [LatticeEdge(word, prob) for word, prob in zip(words, probabilities)]
+        return [LMScore(tokens=[word], score=prob) for word, prob in zip(words, probabilities)]
 
 from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
 import torch

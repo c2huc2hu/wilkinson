@@ -3,8 +3,14 @@ from vocab import Vocab
 from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
 
 # from word_beamsearch import token_beam_search, GPTLanguageModel, TokenLattice
-from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel
+from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel, UnigramLanguageModel
 from wilkinson_lattice import WilkinsonLattice
+
+import argparse
+parser = argparse.ArgumentParser(description='Solve a bookcipher')
+parser.add_argument('-b', '--beam-width', help='width of beam search. runtime scales linearly')
+parser.add_argument('source-file', help='source file to decode')
+parser.add_argument('gold-file', help='reference translation for scoring accuracy')
 
 BEAM_WIDTH = 2
 
@@ -34,7 +40,8 @@ print(ciphertext)
 # lattice = TokenLattice(wordbank)
 # beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
 
-lm = GPTLanguageModel()
+# lm = GPTLanguageModel()
+lm = UnigramLanguageModel()
 # lm = LengthLanguageModel()
 lattice = WilkinsonLattice(ciphertext, wordbank)
 
