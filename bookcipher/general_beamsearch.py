@@ -65,7 +65,7 @@ class Lattice():
         with open(filename, 'w') as fh:
             print(self.final_state, file=fh)
 
-            for from_state in sorted(self.lattice, key=lambda from_state: from_state == self.start_state): # put the start state first
+            for from_state in sorted(self.lattice, key=lambda from_state: from_state != self.start_state): # put the start state first
                 for to_state in self.possible_to_states(from_state):
                     for (label, prob) in self.possible_edges(from_state, to_state):
                         print('({} ({} "{}" {}))'.format(from_state, to_state, label, math.exp(prob)), file=fh)
