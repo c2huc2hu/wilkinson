@@ -8,3 +8,5 @@ output
 .xlsx
 *.out
 *.prof
+
+*.swp

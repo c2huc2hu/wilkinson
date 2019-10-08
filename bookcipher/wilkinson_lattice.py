@@ -27,7 +27,10 @@ class WilkinsonLattice(Lattice):
         # unknown words aren't decipherable
         if source_token.ciphertype is None:
             # TODO: inflect depending on plaintext
-            return [LatticeEdge(source_token.plaintext, 0)]
+            if source_token.plaintext.isspace():
+                return [LatticeEdge('', 0)] # ignore empty tokens
+            else:
+                return [LatticeEdge(source_token.plaintext, 0)]
         # no point in assigning probabilities to known words
         elif not source_token.is_unk(self.wordbank):
             inflected_forms = inflect(source_token.plaintext)

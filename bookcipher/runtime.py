@@ -3,7 +3,7 @@ from vocab import Vocab
 from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
 
 # from word_beamsearch import token_beam_search, GPTLanguageModel, TokenLattice
-from general_beamsearch import beam_search, GPTLanguageModel
+from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel
 from wilkinson_lattice import WilkinsonLattice
 
 BEAM_WIDTH = 2
@@ -35,9 +35,10 @@ print(ciphertext)
 # beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
 
 lm = GPTLanguageModel()
+# lm = LengthLanguageModel()
 lattice = WilkinsonLattice(ciphertext, wordbank)
 
-lattice.to_carmel_lattice('lattices/unsolved.accuracy.lattice')
+lattice.to_carmel_lattice('output/lattices/unsolved.accuracy.lattice')
 print('saved lattice to file')
 
 beam_result = beam_search(lm, lattice, beam_width=BEAM_WIDTH)
@@ -46,7 +47,20 @@ print('\n\n================ DONE ===============\n\n\n')
 for beam in beam_result:
     print(str(beam))
 
-message = lm.tokenizer.decode(beam[0])
+message = lm.decode(beam_result[0].prediction)
+
+with open('data/unsolved.ciphers.accuracy.gold') as fh:
+    gold_text = fh.read()
+    gold_tokens = gold_text.split()
+
+message_tokens = message.split()
+import nltk
+accuracy = nltk.edit_distance(message_tokens, gold_tokens)
+print('Edit distance', accuracy)
+
+quit()
+
+
 
 # super hacky html output
 import os

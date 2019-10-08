@@ -1,10 +1,11 @@
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, Counter
 from datetime import datetime
 import math
 import re
+import os
 
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 LatticeEdge = namedtuple('LatticeEdge', ['label', 'prob']) # prob should be log probability
 
@@ -59,6 +60,8 @@ class Lattice():
                             self.start_state = from_state
 
     def to_carmel_lattice(self, filename):
+        dirname = os.path.dirname(filename)
+        os.makedirs(dirname, exist_ok=True)
         with open(filename, 'w') as fh:
             print(self.final_state, file=fh)
 
@@ -95,6 +98,27 @@ class LengthLanguageModel(LanguageModel):
     def score(self, context, words):
         return [LMScore(tokens=[word], score=-len(word)) for word in words]
 
+class UnigramLanguageModel(LanguageModel):
+    '''Unigram probabilites from the Gutenberg corpus from NLTK'''
+
+    def __init__(self, vocab):
+        self.vocab = vocab.words
+        self.vocab_indices = vocab._vocab
+        self.unk = -1
+
+        nltk.download('gutenberg')
+        self.counter = Counter(nltk.corpus.gutenberg.words())
+
+    def encode(self, word):
+        return [word]
+
+    def decode(self, tokens):
+        return ' '.join(tokens)
+
+    def score(self, context, words):
+        probabilities = np.array([-self.counter[word] for word in words])
+        probabilities = np.log(probabilities /probabilities.sum())
+        return [LatticeEdge(word, prob) for word, prob in zip(words, probabilities)]
 
 from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
 import torch
@@ -103,11 +127,12 @@ import torch.nn.functional as F
 class GPTLanguageModel(LanguageModel):
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available()  else "cpu")
-        self.model = GPT2LMHeadModel.from_pretrained('gpt2')
-        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+        self.model = GPT2LMHeadModel.from_pretrained('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
+        self.tokenizer = GPT2Tokenizer.from_pretrained('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
+        self.model.eval() # set model to eval mode because we're not fine tuning
         Beam.tokenizer = self.tokenizer
 
-        self.model.eval() # set model to eval mode because we're not fine tuning
+        self.model.to(self.device)
 
     def encode(self, word):
         return self.tokenizer.encode(word)
@@ -213,7 +238,7 @@ def beam_search(lm, lattice, beam_width=8):
 
     state = lattice.start_state
 
-    for i in range(lattice.n_states):
+    for i in trange(lattice.n_states):
         print('Beam iteration {}/{} @ time {}, label {}'.format(i, lattice.n_states, datetime.now().time(), state))
 
         new_beams = []
@@ -255,9 +280,9 @@ def beam_search(lm, lattice, beam_width=8):
         beams = beams[:beam_width]
 
         # # for debugging long running things
-        # print('Best Beams:')
-        # for beam in beams:
-        #     print(str(beam))
+        print('Best Beams:')
+        for beam in beams:
+            print(str(beam))
     # print('=========================')
     return beams
 
