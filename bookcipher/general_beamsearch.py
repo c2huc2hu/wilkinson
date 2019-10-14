@@ -125,12 +125,13 @@ class GPTLanguageModel(LanguageModel):
     def __init__(self, model_path='gpt2', tokenizer_path='gpt2'):
         self.device = torch.device("cuda" if torch.cuda.is_available()  else "cpu")
         self.model = GPT2LMHeadModel.from_pretrained(model_path) # default loads from huggingface AWS servers. can cache if behind a firewall
-        self.tokenizer = GPT2Tokenizer.from_pretrained(tokenizer_path)
         self.model.eval() # set model to eval mode because we're not fine tuning
-        Beam.tokenizer = self.tokenizer
-
         self.model.to(self.device)
+        print('loaded model')
 
+        self.tokenizer = GPT2Tokenizer.from_pretrained(tokenizer_path)
+        Beam.tokenizer = self.tokenizer
+        print('loaded tokenizer')
     def encode(self, word):
         return self.tokenizer.encode(word)
 
@@ -225,6 +226,7 @@ def beam_search(lm, lattice, beam_width=8):
     
     Return beams sorted best to worst
     '''
+    print('Starting beam search')
     beams = [Beam([])]
 
     # set up decoder for nicely debugging

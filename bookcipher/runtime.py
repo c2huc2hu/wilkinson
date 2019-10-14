@@ -42,14 +42,10 @@ print('done loading dictionary and wordbanks')
 
 # apply the first two wordbanks
 ciphertext = [wordbank.apply(token) for token in ciphertext]
-print(ciphertext)
-
-# lm = GPTLanguageModel(vocab)
-# lattice = TokenLattice(wordbank)
-# beam_result = token_beam_search(ciphertext, lm, lattice, beam_width=BEAM_WIDTH)
 
 if args.language_model == 'gpt2':
     lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
+    lattice = WilkinsonLattice(ciphertext, wordbank)
 elif args.language_model == 'gpt2-large':
     lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large')
     lattice = WilkinsonLattice(ciphertext, wordbank)
@@ -65,6 +61,8 @@ elif args.language_model == 'none':
     args.beam_width = 1
 else:
     raise ValueError('Invalid language model', args.language_model)
+
+print('Loaded lattice and LM')
 
 if args.language_model != 'none':
     lattice.to_carmel_lattice('output/lattices/unsolved.accuracy.lattice')
