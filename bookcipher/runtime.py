@@ -9,29 +9,21 @@ from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
 import argparse
 parser = argparse.ArgumentParser(description='Solve a bookcipher')
 parser.add_argument('-b', '--beam-width', nargs='?', default=2, help='width of beam search. runtime scales linearly', type=int)
-parser.add_argument('source_file', metavar='source-file', nargs='?', help='source file to decode')
-parser.add_argument('gold_file', metavar='gold-file', nargs='?', help='reference translation for scoring accuracy')
+parser.add_argument('--lattice_file', nargs='?', help='path to lattice file')
+parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
+parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
 parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'none'])
 args = parser.parse_args()
 
-if args.source_file is None:
+if args.source_file is None and args.lattice_file is None:
     args.source_file = 'data/unsolved.ciphers.accuracy'
     args.gold_file = 'data/unsolved.ciphers.accuracy.gold'
+if args.source_file is not None and args.lattice_file is not None:
+    raise ValueError('Cannot supply both a lattice and source file')
 print('Config:', args)
 
 # Runtime
-with open(args.source_file) as fh:
-    untokenized_ciphertext = fh.read()
-    ciphertext = tokenize_ciphertext(untokenized_ciphertext)
-
-# TESTING THINGS
-# ciphertext = tokenize_ciphertext('501.[20]= [804]^ \n [1218]^ 140.[8]- [426]^')
-
 vocab = Vocab('dict.modern')
-
-from pytorch_transformers import GPT2LMHeadModel, GPT2Tokenizer
-import torch
-import torch.nn.functional as F
 
 wordbank = Wordbank(vocab)
 wordbank.load('wordbanks/wordbank.miro')
@@ -40,25 +32,38 @@ wordbank.load('wordbanks/wordbank.2880')
 wordbank.load('wordbanks/wordbank.guess')
 print('done loading dictionary and wordbanks')
 
-# apply the first two wordbanks
-ciphertext = [wordbank.apply(token) for token in ciphertext]
+# Read tokens and apply the first two wordbanks
+if args.source_file is not None:
+    with open(args.source_file) as fh:
+        untokenized_ciphertext = fh.read()
+        ciphertext = tokenize_ciphertext(untokenized_ciphertext)
+        ciphertext = [wordbank.apply(token) for token in ciphertext]
+
+    if args.language_model is 'none':
+        lattice = NoSubstitutionLattice(ciphertext)
+    else:
+        lattice = WilkinsonLattice(ciphertext, lm)
+
+
+elif args.lattice_file is not None:
+    lattice = Lattice()
+    lattice.from_carmel_lattice(args.lattice_file)
+
 
 if args.language_model == 'gpt2':
     lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
-    lattice = WilkinsonLattice(ciphertext, wordbank)
 elif args.language_model == 'gpt2-large':
     lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large')
-    lattice = WilkinsonLattice(ciphertext, wordbank)
 elif args.language_model == 'unigram':
     lm = UnigramLanguageModel()
-    lattice = WilkinsonLattice(ciphertext, wordbank)
 elif args.language_model == 'length':
     lm = LengthLanguageModel()
-    lattice = WilkinsonLattice(ciphertext, wordbank)
 elif args.language_model == 'none':
-    lm = LengthLanguageModel()
-    lattice = NoSubstitutionLattice(ciphertext)
-    args.beam_width = 1
+    if args.lattice_file is not None:
+        raise ValueError('Must supply a language model if a lattice is provided')
+    else:
+        args.beam_width = 1
+        lm = LengthLanguageModel()
 else:
     raise ValueError('Invalid language model', args.language_model)
 
