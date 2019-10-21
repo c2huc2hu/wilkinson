@@ -2,7 +2,7 @@ from wordbank import Wordbank, Token
 from vocab import Vocab
 from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
 
-from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel, UnigramLanguageModel
+from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel, UnigramLanguageModel, Lattice
 from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
 
 # Load config
@@ -42,12 +42,15 @@ if args.source_file is not None:
     if args.language_model is 'none':
         lattice = NoSubstitutionLattice(ciphertext)
     else:
-        lattice = WilkinsonLattice(ciphertext, lm)
+        lattice = WilkinsonLattice(ciphertext, wordbank)
 
 
 elif args.lattice_file is not None:
     lattice = Lattice()
     lattice.from_carmel_lattice(args.lattice_file)
+print(ciphertext)
+for tok in ciphertext:
+    print(tok, tok.ciphertype)
 
 
 if args.language_model == 'gpt2':
