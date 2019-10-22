@@ -153,52 +153,53 @@ class GPTLanguageModel(LanguageModel):
 
         tokenized_input = [self.encode(word) for word in words]
 
-        # Pad tokenized_input with zeros
-        word_lengths = np.array([len(word) for word in tokenized_input]) # number of wordpieces in each word
+        # Pad tokenized_input with zeros to make it rectangular
+        word_lengths = np.array([len(word) for word in tokenized_input]) # number of wordpieces in each candidate word
         np_input = np.zeros((len(word_lengths), max(word_lengths)), dtype=np.int32)
         for i, sent in enumerate(tokenized_input):
             np_input[i,:len(tokenized_input[i])] = tokenized_input[i]
 
-        sentence_lengths = word_lengths + len(context)
-
-        if max(sentence_lengths) >= 512:
-            start_overflow = max(sentence_lengths) - 512 # drop everything but the last 512 tokens because GPT can't handle that
-            np_input = np_input[:,start_overflow:]
-            sentence_lengths -= start_overflow
-
         batch_size = 128 # batch up compute so we don't run out of GPU memory
-        cross_entropies = np.zeros(np_input.shape[0])
+        cross_entropies = np.zeros(np_input.shape[0]) # accumulate results in this
+
+        with torch.no_grad():
+            # Run context to get and cache past. This prevents runtime from growing as the context gets longer.
+            # This could be saved from previous rounds, but that's probably unnecessary
+            past_input = torch.tensor([context], device=device)
+            past_logits, past = model(past_input)
 
         for batch_start in range(0, np_input.shape[0], batch_size):
-            batch_lengths = sentence_lengths[batch_start:batch_start+batch_size]
-            batch_inputs = np_input[batch_start:batch_start+batch_size]
+            batch_lengths = word_lengths[batch_start:batch_start+batch_size]
+            batch_inputs = np_input[batch_start:batch_start+batch_size,:max(batch_lengths)]
 
             with torch.no_grad():
-                # prepend past to each context. can't figure out how to cache past and expand dimensions properly
-                tensor_input = torch.tensor(batch_inputs, dtype=torch.long, device=self.device)
-                past_tensor = torch.tensor([context], device=self.device)
-                past_tensor = past_tensor.expand(batch_lengths.shape[0], -1)
-                tensor_input = torch.cat((past_tensor, tensor_input), dim=1)
 
-                # Run the model with each new possibility (batched)
-                logits, present = self.model(tensor_input)
+                # Evaluate on present state
+                present_input = torch.tensor(batch_inputs, dtype=torch.long, device=device)
+                print('ps', present_input.shape, past[-1].shape)
 
-                # Manually calculate loss for each thing
-                loss_fcn = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction='none')
+                # Run the model with each new possibility (batched). We do a lot of unnecessary computation here
+                # Every possibility is 
+                present_logits, _present = model(present_input, past=past[-1].expand(1,-1,batch_inputs.shape[0],-1,-1,-1))
+
+                # Calculate loss for each possible completion. Can't use huggingface's summary because it summarizes over words, not sentences
+                # Could cache the loss for the past, but I don't think that's the bottleneck
+                logits = torch.cat((past_logits.expand(present_logits.shape[0],-1,-1), present_logits), dim=1).transpose(1,2)
+                targets = torch.cat((past_input.expand(present_input.shape[0],-1), present_input), dim=1)
+                loss_fcn = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction='none')        
                 losses = loss_fcn(
-                    logits[:,:-1,:].transpose(1,2),
-                    tensor_input[:,1:]
+                    logits,
+                    targets
                 )
 
                 # compute mean loss
-                # TODO: possible optimization: move this onto GPU. torch doesn't support newaxis broadcasting, so not sure if it would help
-                mask = ~(batch_lengths <= np.arange(1,max(sentence_lengths))[:,None]).T
+                # possible optimization: move this onto GPU? 
+                # torch doesn't support newaxis broadcasting, and it requires an extra copy, so possibly no impact
+                mask = ~(len(context) + batch_lengths + 1 <= np.arange(1,len(context) + max(batch_lengths) + 1)[:,None]).T
+                
                 np_losses = losses.detach().cpu().numpy()
-                cross_entropies[batch_start:batch_start+batch_size] = ((mask) * np_losses).sum(axis=1)
-
-                # for flat_i, (original_word, tokens, prob) in enumerate(zip(original_words, tokenized_input, cross_entropies)):
-                #     print(f'Language model gives {prob} probability to word {original_word} (raw: {tokens}) with context {sentence}')
-
+                cross_entropies[batch_start:batch_start+batch_size] = (mask * np_losses).sum(axis=1)
+                
         return [LMScore(tokens=tokens, score=lm_prob) for tokens, lm_prob in zip(tokenized_input, -cross_entropies)]
 
 class Beam():
