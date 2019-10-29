@@ -11,7 +11,7 @@ class Token():
     table_re = r'\[(?P<row>\d+)\]\^'
 
     def __init__(self, raw_string, plaintext='<unk>', source=''):
-        self.raw = raw_string.strip(' ')
+        self.raw = raw_string.strip()
         self.plaintext = plaintext
         self.ciphertype = None # which type of cipher this uses. one of: None (unparsed), dict or table
 
@@ -54,8 +54,8 @@ class Token():
 
         wb: an instance of wordbank
         '''
-        if wb:
-            return self not in wb._dict
+        if wb and self in wb._dict:
+            return False
         else:
             return self.plaintext == '<unk>'
 

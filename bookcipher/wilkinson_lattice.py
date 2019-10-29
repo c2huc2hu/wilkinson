@@ -32,6 +32,8 @@ class WilkinsonLattice(Lattice):
             # TODO: inflect depending on plaintext
             if source_token.plaintext.isspace():
                 return [LatticeEdge('', 0)] # ignore empty tokens
+            elif source_token.plaintext.isalpha():
+                return [LatticeEdge(source_token.plaintext, 0)] # return unchanged plaintext for literas
             else: # condition over the whole output space
                 return [LatticeEdge(word, -np.log(len(self.vocab.inflected_words))) for word in self.vocab.inflected_words]
         # no point in assigning probabilities to known words

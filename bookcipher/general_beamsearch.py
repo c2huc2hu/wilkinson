@@ -140,7 +140,6 @@ class GPTLanguageModel(LanguageModel):
 
     def score(self, context, words):
         '''context should be a list of GPT tokens in history. score `words` and return scores in the same order'''
-
         if len(words) == 0:
             raise ValueError('No extensions proposed')
         elif len(words) == 1:
@@ -150,6 +149,7 @@ class GPTLanguageModel(LanguageModel):
         if len(context) <= 1:
             # context = self.tokenizer.encode(self.tokenizer.unk_token) * (2 - len(context)) + context
             context = self.encode('Yes.') + context
+        context = context[-16:] # limit the size of context because GPT can only handle 512
 
         tokenized_input = [self.encode(word) for word in words]
 
@@ -172,6 +172,7 @@ class GPTLanguageModel(LanguageModel):
             order = np.argsort(-word_lengths)
                 
             for batch_start in range(0, np_input.shape[0], batch_size):
+                print('Allocated memory inner loop', torch.cuda.memory_allocated(self.device), 'max allocated', torch.cuda.max_memory_allocated(self.device))
                 batch_indices = order[batch_start:batch_start+batch_size]
                 batch_lengths = word_lengths[batch_indices]
                 batch_inputs = np_input[batch_indices,:max(batch_lengths)]
@@ -199,7 +200,7 @@ class GPTLanguageModel(LanguageModel):
                 # skip GPT call for words of length 1
                 else:
                     logits = past_logits.expand(true_batch_size,-1,-1).transpose(1,2)
-                    present_input = torch.tensor(batch_inputs, dtype=torch.long)
+                    present_input = torch.tensor(batch_inputs, dtype=torch.long, device=self.device)
                     targets = torch.cat((past_input.expand(true_batch_size,-1), present_input), dim=1)[:,1:]
 
                 loss_fcn = torch.nn.CrossEntropyLoss(ignore_index=-1, reduction='none')        
@@ -215,7 +216,8 @@ class GPTLanguageModel(LanguageModel):
                 np_losses = losses.detach().cpu().numpy()
                 cross_entropies[batch_indices] = (mask * np_losses).sum(axis=1)
 
-                
+        print('CE type', type(tokenized_input), type(cross_entropies)) # make sure this isn't a torch tensor
+
         return [LMScore(tokens=tokens, score=lm_prob) for tokens, lm_prob in zip(tokenized_input, -cross_entropies)]
 
 class Beam():
@@ -257,6 +259,19 @@ def beam_search(lm, lattice, beam_width=8):
     for i in trange(lattice.n_states):
         print('Beam iteration {}/{} @ time {}, label {}'.format(i, lattice.n_states, datetime.now().time(), state))
 
+        # print('Allocated memory', torch.cuda.memory_allocated(lm.device), 'max allocated', torch.cuda.max_memory_allocated(lm.device))
+
+        import gc
+        gc.collect() # torch leaks memory used in the tensors, so free it manually
+        allocated_count = 0
+        for obj in gc.get_objects():
+            try:
+                if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                    allocated_count += 1
+            except:
+                pass
+        print('Allocated', allocated_count)
+
         new_beams = []
         to_states = lattice.possible_to_states(state)
         if len(to_states) != 1:
@@ -292,10 +307,14 @@ def beam_search(lm, lattice, beam_width=8):
 
         state = next_state
 
+        # Dedupe beams
+        new_beams = {tuple(beam.prediction): beam for beam in new_beams}.values()
+
+        # Sort beams by probability
         beams = sorted(new_beams, key=lambda beam: beam.log_prob, reverse=True)
         beams = beams[:beam_width]
 
-        # # for debugging long running things
+        # for debugging long running things
         print('Best Beams:')
         for beam in beams:
             print(str(beam))

@@ -10,7 +10,7 @@ def tokenize_ciphertext(ciphertext):
     return a token_list
     '''
     result = []
-    for raw_token in re.split(r' |({})|({})'.format(
+    for raw_token in re.split(r'\s|({})|({})'.format(
             r'\d+\.\[\d+\][=-]', # re that picks up things using the dict cipher
             r'\[\d+\]\^' # re that picks up things using the table cipher
         ), ciphertext):
