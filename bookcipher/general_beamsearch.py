@@ -149,7 +149,7 @@ class GPTLanguageModel(LanguageModel):
         if len(context) <= 1:
             # context = self.tokenizer.encode(self.tokenizer.unk_token) * (2 - len(context)) + context
             context = self.encode('Yes.') + context
-        context = context[-16:] # limit the size of context because GPT can only handle 512
+        context = context[-64:] # limit the size of context because GPT can only handle 512
 
         tokenized_input = [self.encode(word) for word in words]
 
@@ -159,7 +159,7 @@ class GPTLanguageModel(LanguageModel):
         for i, sent in enumerate(tokenized_input):
             np_input[i,:len(tokenized_input[i])] = tokenized_input[i]
 
-        batch_size = 256 # batch up compute so we don't run out of GPU memory
+        batch_size = 128 # batch up compute so we don't run out of GPU memory
         cross_entropies = np.zeros(np_input.shape[0]) # accumulate results in this
 
         with torch.no_grad():
@@ -260,17 +260,16 @@ def beam_search(lm, lattice, beam_width=8):
         print('Beam iteration {}/{} @ time {}, label {}'.format(i, lattice.n_states, datetime.now().time(), state))
 
         # print('Allocated memory', torch.cuda.memory_allocated(lm.device), 'max allocated', torch.cuda.max_memory_allocated(lm.device))
-
-        import gc
-        gc.collect() # torch leaks memory used in the tensors, so free it manually
-        allocated_count = 0
-        for obj in gc.get_objects():
-            try:
-                if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                    allocated_count += 1
-            except:
-                pass
-        print('Allocated', allocated_count)
+        # import gc
+        # gc.collect() # torch leaks memory used in the tensors, so free it manually
+        # allocated_count = 0
+        # for obj in gc.get_objects():
+        #     try:
+        #         if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+        #             allocated_count += 1
+        #     except:
+        #         pass
+        # print('Allocated', allocated_count)
 
         new_beams = []
         to_states = lattice.possible_to_states(state)

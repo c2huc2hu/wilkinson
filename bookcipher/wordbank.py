@@ -38,7 +38,13 @@ class Token():
             self.ciphertype = 'table'
             self.row = int(m_table.group('row'))
 
-            if self.row < 160 or self.row >= 1221: # outside of this range, the table isn't alphabetical. it's proper nouns and other stuff
+            if self.row < 160: # table of proper nouns, names or places
+                self.ciphertype = None
+                self.plaintext = 'America'
+                self.source = 'guessed_proper_noun'
+                self.prob = 1
+
+            if self.row >= 1221: # words added afterwards
                 self.ciphertype = None
                 del self.row
                 self.plaintext = '<unk>'
@@ -146,7 +152,12 @@ class Wordbank():
                     location, source, word = line.strip().split('\t')
                     self.add(location, word, wordbank_name + source)
 
-        # verify that everything is in order
+    def save(self, filename):
+        '''Dump wordbank to file'''
+
+        with open(filename, 'w') as f:
+            for token in self._dict:
+                print('\t'.join([token.raw, token.source, token.plaintext]), file=f)
 
     def add(self, raw, plaintext, source=''):
         '''add a word to the wordbank if it's not already there'''

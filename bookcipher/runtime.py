@@ -1,6 +1,6 @@
 from wordbank import Wordbank, Token
 from vocab import Vocab
-from passes import tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
+from passes import apply_literals, tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
 
 from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel, UnigramLanguageModel, Lattice
 from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
@@ -16,7 +16,7 @@ parser.add_argument('--language-model', '--lm', help='which language model to us
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
-    args.source_file = 'data/unsolved.ciphers.accuracy'
+    args.source_file = 'data/unsolved.ciphers.accuracy.clean'
     args.gold_file = 'data/unsolved.ciphers.accuracy.gold'
 if args.source_file is not None and args.lattice_file is not None:
     raise ValueError('Cannot supply both a lattice and source file')
@@ -31,16 +31,20 @@ wordbank.load('wordbanks/wordbank.clean')
 wordbank.load('wordbanks/wordbank.2880')
 wordbank.load('wordbanks/wordbank.guess')
 print('done loading dictionary and wordbanks')
+wordbank.save('output/wordbank.full')
 
 # Read tokens and apply the first two wordbanks
 if args.source_file is not None:
     with open(args.source_file) as fh:
         untokenized_ciphertext = fh.read()
+
+        untokenized_ciphertext = apply_literals(untokenized_ciphertext, 'wordbanks/literals')
         ciphertext = tokenize_ciphertext(untokenized_ciphertext)
         ciphertext = [wordbank.apply(token) for token in ciphertext]
 
-    if args.language_model is 'none':
+    if args.language_model == 'none':
         lattice = NoSubstitutionLattice(ciphertext)
+        print('using no sub lattice')
     else:
         lattice = WilkinsonLattice(ciphertext, wordbank)
 
@@ -48,9 +52,10 @@ if args.source_file is not None:
 elif args.lattice_file is not None:
     lattice = Lattice()
     lattice.from_carmel_lattice(args.lattice_file)
-print(ciphertext)
-for tok in ciphertext:
-    print(tok, tok.ciphertype)
+
+# print(ciphertext)
+# for tok in ciphertext:
+#     print(tok, tok.ciphertype)
 
 
 if args.language_model == 'gpt2':
@@ -91,7 +96,7 @@ if args.gold_file is not None:
 
     message_tokens = message.split()
     import nltk
-    accuracy = nltk.edit_distance(message_tokens, gold_tokens)
+    accuracy = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
     print('Edit distance', accuracy)
 
 print('done')

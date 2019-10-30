@@ -5,12 +5,38 @@ from collections import Counter
 
 from wordbank import Token
 
+def apply_literals(ciphertext, filename):
+    '''
+    Do replacements that aren't part of the alphabetic wordbank
+    Replace known groups of characters, e.g. [1235]^ y -> my
+    and extra stuff before or after the table
+
+    Also strip out inflection markers e.g. +ing
+
+    Takes a string, returns a string
+    '''
+
+    # Replace all literals
+    with open(filename) as fh:
+        for line in fh:
+            if line.startswith('#') or line.isspace():
+                continue # skip comments and blank lines
+
+            raw, source, plaintext = line.split('\t')
+
+            ciphertext = ciphertext.replace(raw.strip(), plaintext)
+
+    # Delete unused inflection markers
+    ciphertext = re.sub(r'\+\w+', '', ciphertext)
+
+    return ciphertext
+
 def tokenize_ciphertext(ciphertext):
     '''
     return a token_list
     '''
     result = []
-    for raw_token in re.split(r'\s|({})|({})'.format(
+    for raw_token in re.split(r'\s|({})|({})|(\s\.)'.format(
             r'\d+\.\[\d+\][=-]', # re that picks up things using the dict cipher
             r'\[\d+\]\^' # re that picks up things using the table cipher
         ), ciphertext):
