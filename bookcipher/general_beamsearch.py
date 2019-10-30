@@ -172,7 +172,7 @@ class GPTLanguageModel(LanguageModel):
             order = np.argsort(-word_lengths)
                 
             for batch_start in range(0, np_input.shape[0], batch_size):
-                print('Allocated memory inner loop', torch.cuda.memory_allocated(self.device), 'max allocated', torch.cuda.max_memory_allocated(self.device))
+                # print('Allocated memory inner loop', torch.cuda.memory_allocated(self.device), 'max allocated', torch.cuda.max_memory_allocated(self.device))
                 batch_indices = order[batch_start:batch_start+batch_size]
                 batch_lengths = word_lengths[batch_indices]
                 batch_inputs = np_input[batch_indices,:max(batch_lengths)]
@@ -215,8 +215,6 @@ class GPTLanguageModel(LanguageModel):
                 mask = ~(len(context) + batch_lengths <= np.arange(1,len(context) + max(batch_lengths))[:,None]).T
                 np_losses = losses.detach().cpu().numpy()
                 cross_entropies[batch_indices] = (mask * np_losses).sum(axis=1)
-
-        print('CE type', type(tokenized_input), type(cross_entropies)) # make sure this isn't a torch tensor
 
         return [LMScore(tokens=tokens, score=lm_prob) for tokens, lm_prob in zip(tokenized_input, -cross_entropies)]
 
