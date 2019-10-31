@@ -1,6 +1,8 @@
+from collections import namedtuple
+
 from wordbank import Wordbank, Token
 from vocab import Vocab
-from passes import apply_literals, tokenize_ciphertext, add_frequency_attack, beam_search_pass, dump_lattice
+from passes import apply_literals, tokenize_ciphertext, add_frequency_attack, dump_lattice
 
 from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel, UnigramLanguageModel, Lattice
 from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
@@ -13,6 +15,7 @@ parser.add_argument('--lattice_file', nargs='?', help='path to lattice file')
 parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
 parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
 parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'none'])
+parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
@@ -81,7 +84,63 @@ if args.language_model != 'none':
     lattice.to_carmel_lattice('output/lattices/unsolved.accuracy.lattice')
     print('saved lattice to file')
 
-beam_result = beam_search(lm, lattice, beam_width=args.beam_width)
+ScoreDrop = namedtuple("ScoreDrop", ['score_drop', 'plaintext', 'ciphertext'])
+MAX_ITERATIONS = 10
+STOP_PERCENTAGE = 90.0 # stop when this much of the wordbank is known
+
+for step in range(MAX_ITERATIONS):
+    # Count unk tokens. break if more than STOP_PERCENTAGE% of tokens are known
+    unks = 0
+    for token in ciphertext:
+        if token.is_unk(wordbank):
+            unks += 1
+    print('unks', unks)
+    if unks < len(ciphertext) * (1 - STOP_PERCENTAGE/100):
+        break
+
+    # Do beam search
+    beam_result = beam_search(lm, lattice, beam_width=args.beam_width)
+
+    # Get training history
+    best_history = []
+    best_beam = beam_result[0]
+    while best_beam is not None:
+        best_history.append(best_beam)
+        best_beam = best_beam.prev
+    best_history.reverse()
+
+    # Get score drops
+    prev_prob = 0
+    prev_len = 0 # length of deciphered sequence in characters
+    drops = []
+
+    for beam in best_history[1:]: # first element contains empty beam
+
+        # wilkinson specific properties
+        token = beam.lattice_edge.token
+        raw_form = beam.lattice_edge.uninflected_form
+        new_word = beam.lattice_edge.label
+
+        score_drop = prev_prob - beam.log_prob # positive
+        prev_prob = beam.log_prob
+
+        if token.is_unk(wordbank): # only add unknown tokens to wordbank 
+            drops.append(ScoreDrop(score_drop=score_drop, plaintext=new_word, ciphertext=token.raw))
+    drops.sort(key=lambda x: x.score_drop)
+
+    # add S substitutions to the wordbank
+    for i, drop in enumerate(drops[:args.substitutions]):
+        try:
+            wordbank.add(drop.ciphertext, drop.plaintext, source='context')
+            print('adding:', drop.ciphertext, drop.plaintext)
+        except ValueError as e: # stop when tokens are out of order
+            print('inconsistency', e)
+            break
+
+    # Dump the new wordbank
+    wordbank.save('output/wordbank{}.full'.format(step))
+
+
 
 print('\n\n================ DONE ===============\n\n\n')
 for beam in beam_result:

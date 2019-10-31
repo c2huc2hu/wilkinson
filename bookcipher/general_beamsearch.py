@@ -7,7 +7,16 @@ import os
 import numpy as np
 from tqdm import tqdm, trange
 
-LatticeEdge = namedtuple('LatticeEdge', ['label', 'prob']) # prob should be log probability
+# LatticeEdge = namedtuple('LatticeEdge', ['label', 'prob']) # prob should be log probability
+
+class LatticeEdge():
+    def __init__(self, label, prob):
+        self.label = label
+        self.prob = prob # should be a log prob
+    def __iter__(self):
+        '''Make this unpackable like a named tuple'''
+        yield self.label # TODO: remove stuff depending on this functionality
+        yield self.prob
 
 class Lattice():
     def __init__(self, lattice=None, start_state=None, final_state=None):
@@ -191,7 +200,6 @@ class GPTLanguageModel(LanguageModel):
                     past_ = past_.expand(-1,-1,true_batch_size,-1,-1,-1)
                     present_logits, _present = self.model(present_input, past=past_)
                     
-
                     # Calculate loss for each possible completion. Can't use huggingface's summary because it summarizes over words, not sentences
                     # Could cache the loss for the past, but I don't think that's the bottleneck
                     logits = torch.cat((past_logits.expand(true_batch_size,-1,-1), present_logits), dim=1).transpose(1,2)[:,:,:-1]
@@ -221,11 +229,13 @@ class GPTLanguageModel(LanguageModel):
 class Beam():
     tokenizer = None
 
-    def __init__(self, prediction='', lm_prob=0, lattice_prob=0):
+    def __init__(self, prediction='', lm_prob=0, lattice_prob=0, prev=None, lattice_edge=None):
         self.prediction = prediction
         self.lm_prob = lm_prob
         self.lattice_prob = lattice_prob
         self.log_prob = lm_prob + lattice_prob
+        self.prev = prev
+        self.lattice_edge = lattice_edge
 
     def __lt__(self, other):
         return self.log_prob < other.log_prob
@@ -244,15 +254,16 @@ def beam_search(lm, lattice, beam_width=8):
     Return beams sorted best to worst
     '''
     print('Starting beam search')
+    state = lattice.start_state
     beams = [Beam([])]
+    history = []
 
     # set up decoder for nicely debugging
     try:
         Beam.decode = lm.decode
     except AttributeError:
-        pass
+        print('LM Decoder not defined, raw tokens will be printed')
 
-    state = lattice.start_state
 
     for i in trange(lattice.n_states):
         print('Beam iteration {}/{} @ time {}, label {}'.format(i, lattice.n_states, datetime.now().time(), state))
@@ -278,17 +289,18 @@ def beam_search(lm, lattice, beam_width=8):
 
         lattice_edges = lattice.possible_edges(state, next_state)
 
+        # error out if there are no possibilites
+        if len(lattice_edges) == 0:
+            raise IndexError('State {} has no successors'.format(i))
+
         # if there's only one possibility, don't run the language model on it
-        if len(lattice_edges) == 1:
+        # disabled this for now to allow recovering tokens
+        elif len(lattice_edges) == 1:
             label, _prob = lattice_edges[0]
             for beam in beams:
                 beam.prediction.extend(lm.encode(label))
             state = next_state
             continue
-
-        # error out if there are no possibilites
-        elif len(lattice_edges) == 0:
-            raise IndexError('State {} has no successors'.format(i))
 
         else:
             for beam in tqdm(beams):
@@ -297,15 +309,16 @@ def beam_search(lm, lattice, beam_width=8):
                 if len(lattice_edges) != len(lm_scores):
                     raise IndexError('Number of lm probabilities ({}) doesn\'t match number of labels ({})'.format(len(lm_scores), len(lattice_edges)))
 
-                for ((lattice_edge, lattice_prob), (lm_tokens, lm_score)) in zip(lattice_edges, lm_scores):
-                    new_beam = Beam(beam.prediction + lm_tokens, lm_score, beam.lattice_prob + lattice_prob)
-                    # print(f'Proposing new word {word} with probability {new_beam.lm_prob} + {new_beam.lattice_prob} = {new_beam.log_prob}')
+                for (lattice_edge, (lm_tokens, lm_score)) in zip(lattice_edges, lm_scores):
+                    new_beam = Beam(beam.prediction + lm_tokens, lm_score, beam.lattice_prob + lattice_edge.prob, beam, lattice_edge)
                     new_beams.append(new_beam)
+                    # print(f'Proposing new word {word} with probability {new_beam.lm_prob} + {new_beam.lattice_prob} = {new_beam.log_prob}')
 
         state = next_state
 
-        # Dedupe beams
+        # Dedupe beams. Can get duplicates if two words in the dictionary are inflected the same way
         new_beams = {tuple(beam.prediction): beam for beam in new_beams}.values()
+        history.append(new_beams)
 
         # Sort beams by probability
         beams = sorted(new_beams, key=lambda beam: beam.log_prob, reverse=True)

@@ -10,3 +10,4 @@ output
 *.prof
 
 *.swp
+.DS_Store
