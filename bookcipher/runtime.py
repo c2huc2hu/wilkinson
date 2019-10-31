@@ -1,5 +1,7 @@
 from collections import namedtuple
 
+import nltk
+
 from wordbank import Wordbank, Token
 from vocab import Vocab
 from passes import apply_literals, tokenize_ciphertext, add_frequency_attack, dump_lattice
@@ -11,7 +13,7 @@ from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
 import argparse
 parser = argparse.ArgumentParser(description='Solve a bookcipher')
 parser.add_argument('-b', '--beam-width', nargs='?', default=2, help='width of beam search. runtime scales linearly', type=int)
-parser.add_argument('--lattice_file', nargs='?', help='path to lattice file')
+parser.add_argument('--lattice_file', help='path to lattice file')
 parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
 parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
 parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'none'])
@@ -140,26 +142,27 @@ for step in range(MAX_ITERATIONS):
     # Dump the new wordbank
     wordbank.save('output/wordbank{}.full'.format(step))
 
+    # Print edit distance at each step
+    if args.gold_file is not None:
+        with open(args.gold_file) as fh:
+            gold_text = fh.read()
+            gold_tokens = gold_text.split()
+
+        message_tokens = lm.decode(beam_result[0].prediction).split()
+        accuracy = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
+        print('Edit distance', accuracy)
 
 
 print('\n\n================ DONE ===============\n\n\n')
+print('Final beams')
 for beam in beam_result:
     print(str(beam))
 
-message = lm.decode(beam_result[0].prediction)
-
-if args.gold_file is not None:
-    with open(args.gold_file) as fh:
-        gold_text = fh.read()
-        gold_tokens = gold_text.split()
-
-    message_tokens = message.split()
-    import nltk
-    accuracy = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
-    print('Edit distance', accuracy)
-
-print('done')
 quit(0)
+
+message = lm.decode(beam_result[0].prediction)
+print('Best decoding')
+print(message)
 
 # super hacky html output
 import os

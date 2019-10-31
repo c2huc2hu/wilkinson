@@ -7,16 +7,10 @@ import os
 import numpy as np
 from tqdm import tqdm, trange
 
-# LatticeEdge = namedtuple('LatticeEdge', ['label', 'prob']) # prob should be log probability
-
 class LatticeEdge():
     def __init__(self, label, prob):
         self.label = label
         self.prob = prob # should be a log prob
-    def __iter__(self):
-        '''Make this unpackable like a named tuple'''
-        yield self.label # TODO: remove stuff depending on this functionality
-        yield self.prob
 
 class Lattice():
     def __init__(self, lattice=None, start_state=None, final_state=None):
@@ -76,8 +70,8 @@ class Lattice():
 
             for from_state in sorted(self.lattice, key=lambda from_state: from_state != self.start_state): # put the start state first
                 for to_state in self.possible_to_states(from_state):
-                    for (label, prob) in self.possible_edges(from_state, to_state):
-                        print('({} ({} "{}" {}))'.format(from_state, to_state, label, math.exp(prob)), file=fh)
+                    for edge in self.possible_edges(from_state, to_state):
+                        print('({} ({} "{}" {}))'.format(from_state, to_state, edge.label, math.exp(edge.prob)), file=fh)
 
     @property
     def n_states(self):
@@ -296,9 +290,8 @@ def beam_search(lm, lattice, beam_width=8):
         # if there's only one possibility, don't run the language model on it
         # disabled this for now to allow recovering tokens
         elif len(lattice_edges) == 1:
-            label, _prob = lattice_edges[0]
             for beam in beams:
-                beam.prediction.extend(lm.encode(label))
+                beam.prediction.extend(lm.encode(lattice_edges[0].label))
             state = next_state
             continue
 

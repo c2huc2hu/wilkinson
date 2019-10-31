@@ -3,10 +3,18 @@
 TODO: write a description
 
 
-## Running & Installation
+## Installation
 
-<!-- TODO: create requirements.txt-->
+    pip install
 
-    pip3 install scipy
-    brew install mysql # OSX, needed for pattern
+    # One of the following to install pattern
+    # brew install mysql # OSX
+    # sudo apt-get install libmysqlclient-dev # ubuntu
+
     pip3 install pattern
+
+
+## Running
+
+    python wordbank/runtime.py --lm gpt2 -b=4
+    python wordbank/runtime.py --help # for more options
