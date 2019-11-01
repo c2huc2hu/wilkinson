@@ -4,9 +4,9 @@ import nltk
 
 from wordbank import Wordbank, Token
 from vocab import Vocab
-from passes import apply_literals, tokenize_ciphertext, add_frequency_attack, dump_lattice
+from passes import apply_literals, tokenize_ciphertext, visualize
 
-from general_beamsearch import beam_search, GPTLanguageModel, LengthLanguageModel, UnigramLanguageModel, Lattice
+from general_beamsearch import beam_search, LengthLanguageModel, UnigramLanguageModel, Lattice
 from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
 
 # Load config
@@ -64,8 +64,10 @@ elif args.lattice_file is not None:
 
 
 if args.language_model == 'gpt2':
+    from gpt_lm import GPTLanguageModel # only import if necessary
     lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
 elif args.language_model == 'gpt2-large':
+    from gpt_lm import GPTLanguageModel
     lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large')
 elif args.language_model == 'unigram':
     lm = UnigramLanguageModel()
@@ -158,8 +160,6 @@ print('Final beams')
 for beam in beam_result:
     print(str(beam))
 
-quit(0)
-
 message = lm.decode(beam_result[0].prediction)
 print('Best decoding')
 print(message)
@@ -179,13 +179,11 @@ with open('output/visualize.html', 'w') as fh:
             <div class="key" style="background-color:turquoise">literal</div>
             <div class="key" style="background-color:rgb(0,127,0)">uncertain guess (p=0)</div>
             <div class="key" style="background-color:rgb(0,255,0)">certain guess (p=1)</div>
-
         </p>
 
         ''')
 
-    fh.write(' '.join(token.to_html() for token in message))
-
+    fh.write(visualize(best_history))
     fh.write('</body>')
 
 print('done!')

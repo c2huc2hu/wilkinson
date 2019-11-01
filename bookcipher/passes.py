@@ -45,6 +45,54 @@ def tokenize_ciphertext(ciphertext):
 
     return result
 
+def visualize(history):
+    result = []
+    for beam in history[1:]: # first element contains empty beam
+
+        # wilkinson specific properties
+        token = beam.lattice_edge.token
+        uninflected_form = beam.lattice_edge.uninflected_form
+        new_word = beam.lattice_edge.label
+
+        style_dict = {
+            'literal': 'turquoise',
+            'clean_wordbank': 'lightblue',
+            'miro': 'skyblue',
+            '2880': 'lightskyblue',
+            'guess': 'limegreen',
+            'context': 'gold',
+            'guessed_proper_noun': 'pink',
+        }
+
+        if token.source in style_dict:
+            style = 'background-color:' + style_dict[token.source] + ';'
+        else:
+            style = ''
+
+        result.append(
+            '''
+            <div class="tooltip" style="{style}">
+                {token}
+                {plaintext}
+                <span class="tooltiptext">
+                    uninflected:{uninflected_form}<br>
+                    lmprob:{lm_prob:.2}<br>
+                    latticeprob:{lattice_prob:.2}<br>
+                    source:{source}
+                </span>
+            </div>
+            '''
+        .format(plaintext=new_word.replace('<', '&lt;'),
+                 token=token.raw,
+                 source=token.source,
+                 lm_prob=float(beam.lm_prob),
+                 lattice_prob=float(beam.lattice_prob),
+                 style=style,
+                 uninflected_form=uninflected_form,
+        ))
+    return '\n'.join(result)
+
+
 def add_frequency_attack(wordbank, ciphertext):
     # add a unigram frequency attack to the wordbank
     # greedily assign frequently used (count >= 3) tokens to any matching word in the most common 100 english words
@@ -117,8 +165,3 @@ def beam_search_pass(ciphertext, wordbank, alpha=1, beam_width=8):
 #     for token, word in zip(ciphertext, best_result):
 #         token.plaintext = word
 #     return ciphertext
-
-def dump_lattice(ciphertext, wordbank):
-    lattice = TokenLattice(wordbank)
-    lattice.dump_carmel_lattice(ciphertext, 'output/ciphertext.lattice')
-    print('done dumping')
