@@ -31,19 +31,20 @@ def apply_literals(ciphertext, filename):
 
     return ciphertext
 
+split_re = re.compile(r'''
+    \s
+    |(\d+\.\[\d+\][=-]) # dict cipher
+    |(\[\d+\]\^)  # table cipher
+    |(\s\.)       # separate out periods
+''', flags=re.VERBOSE)
+def split_ciphertext(ciphertext):
+    return [match for match in re.split(split_re, ciphertext) if match]
+
 def tokenize_ciphertext(ciphertext):
     '''
     return a token_list
     '''
-    result = []
-    for raw_token in re.split(r'\s|({})|({})|(\s\.)'.format(
-            r'\d+\.\[\d+\][=-]', # re that picks up things using the dict cipher
-            r'\[\d+\]\^' # re that picks up things using the table cipher
-        ), ciphertext):
-        if raw_token:
-            result.append(Token(raw_token))
-
-    return result
+    return [Token(token) for token in split_ciphertext(ciphertext)]
 
 def visualize(history):
     result = []

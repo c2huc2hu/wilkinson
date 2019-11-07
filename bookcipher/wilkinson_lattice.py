@@ -65,7 +65,7 @@ class WilkinsonLattice(Lattice):
             raise ValueError('Found a token that can be deduced from wordbank. Did you forget to call wordbank.apply?')
 
         # Parameterize distribution
-        b = 1 # parameterizes the sharpness of the distribution.
+        b = 3 # parameterizes the sharpness of the distribution.
               # TODO: actually fit data to figure out what this should be
         a = (mean * b) / (1 - mean) # controls where the peak is
 

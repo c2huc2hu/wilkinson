@@ -4,7 +4,7 @@ import nltk
 
 from wordbank import Wordbank, Token
 from vocab import Vocab
-from passes import apply_literals, tokenize_ciphertext, visualize
+from passes import apply_literals, split_ciphertext, tokenize_ciphertext, visualize
 
 from general_beamsearch import beam_search, LengthLanguageModel, UnigramLanguageModel, Lattice
 from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
@@ -16,7 +16,7 @@ parser.add_argument('-b', '--beam-width', nargs='?', default=2, help='width of b
 parser.add_argument('--lattice_file', help='path to lattice file')
 parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
 parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
-parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'none'])
+parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'none'])
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 args = parser.parse_args()
 
@@ -73,6 +73,10 @@ elif args.language_model == 'unigram':
     lm = UnigramLanguageModel()
 elif args.language_model == 'length':
     lm = LengthLanguageModel()
+elif args.language_model == 'oracle':
+    from oracle_lm import OracleLanguageModel
+    args.beam_width = 1
+    lm = OracleLanguageModel('data/unsolved.ciphers.accuracy.gold')
 elif args.language_model == 'none':
     if args.lattice_file is not None:
         raise ValueError('Must supply a language model if a lattice is provided')
@@ -146,13 +150,26 @@ for step in range(MAX_ITERATIONS):
 
     # Print edit distance at each step
     if args.gold_file is not None:
+
+
+        # Compute old edit distance for comparison purposes i.e. using old split
         with open(args.gold_file) as fh:
             gold_text = fh.read()
             gold_tokens = gold_text.split()
 
         message_tokens = lm.decode(beam_result[0].prediction).split()
         accuracy = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
-        print('Edit distance', accuracy)
+        print('Old edit distance: {}'.format(accuracy))
+
+        # Use proper split
+        with open(args.gold_file) as fh:
+            gold_text = fh.read()
+            gold_tokens = split_ciphertext(gold_text)
+
+        message_tokens = split_ciphertext(lm.decode(beam_result[0].prediction))
+
+        accuracy = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
+        print('New Edit distance', accuracy)
 
 
 print('\n\n================ DONE ===============\n\n\n')
