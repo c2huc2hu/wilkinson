@@ -12,13 +12,14 @@ from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
 # Load config
 import argparse
 parser = argparse.ArgumentParser(description='Solve a bookcipher')
-parser.add_argument('-b', '--beam-width', nargs='?', default=2, help='width of beam search. runtime scales linearly', type=int)
+parser.add_argument('-b', '--beam-width', nargs='?', default=4, help='width of beam search. runtime scales linearly', type=int)
 parser.add_argument('--lattice_file', help='path to lattice file')
 parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
 parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
 parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'none'])
 parser.add_argument('--self-learn', help='enable self-learning', action='store_true')
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
+parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=int)
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
@@ -52,7 +53,7 @@ if args.source_file is not None:
         lattice = NoSubstitutionLattice(ciphertext)
         print('using no sub lattice')
     else:
-        lattice = WilkinsonLattice(ciphertext, wordbank)
+        lattice = WilkinsonLattice(ciphertext, wordbank, args.beta)
 
 
 elif args.lattice_file is not None:
@@ -146,7 +147,6 @@ for step in range(MAX_ITERATIONS):
 
     # Print edit distance at each step
     if args.gold_file is not None:
-
 
         # Compute old edit distance for comparison purposes i.e. using old split
         with open(args.gold_file) as fh:

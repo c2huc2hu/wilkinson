@@ -18,10 +18,11 @@ class WilkinsonLatticeEdge(LatticeEdge):
             self.uninflected_form = uninflected_form
 
 class WilkinsonLattice(Lattice):
-    def __init__(self, source, wordbank):
+    def __init__(self, source, wordbank, beta):
         self.source = source
         self.wordbank = wordbank
         self.vocab = wordbank.vocab
+        self.beta = beta
 
         # parse lattice into general Lattice format
         self.lattice = defaultdict(lambda: defaultdict(list))
@@ -65,9 +66,9 @@ class WilkinsonLattice(Lattice):
             raise ValueError('Found a token that can be deduced from wordbank. Did you forget to call wordbank.apply?')
 
         # Parameterize distribution
-        b = 3 # parameterizes the sharpness of the distribution.
+        b = self.beta # parameterizes the sharpness of the distribution.
               # TODO: actually fit data to figure out what this should be
-        a = (mean * b) / (1 - mean) # controls where the peak is
+        a = (mean * b - 2 * mean + 1) / (1 - mean) # controls mode of the distribution
 
         # distribute probabilities to `scale` probability buckets, corresponding to tokens in vocab
         cdf = beta.cdf(np.arange(scale + 1) / scale, a=a, b=b)
