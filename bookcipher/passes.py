@@ -26,8 +26,8 @@ def apply_literals(ciphertext, filename):
 
             ciphertext = ciphertext.replace(raw.strip(), plaintext)
 
-    # Delete unused inflection markers
-    ciphertext = re.sub(r'\+\w+', '', ciphertext)
+    # # Delete unused inflection markers
+    # ciphertext = re.sub(r'\+\w+', '', ciphertext)
 
     return ciphertext
 
@@ -44,7 +44,14 @@ def tokenize_ciphertext(ciphertext):
     '''
     return a token_list
     '''
-    return [Token(token) for token in split_ciphertext(ciphertext)]
+
+    tokens = []
+    for token in split_ciphertext(ciphertext):
+        if token.startswith('+'):
+            tokens[-1].suffix = token[1:] # drop leading +
+        else:
+            tokens.append(Token(token))
+    return tokens
 
 def visualize(history):
     result = []

@@ -17,6 +17,7 @@ class Token():
 
         self.source = source
         self.prob = 0
+        self.suffix = '' # suffixes, e.g. +ing
 
         # parse
         m_dict = re.match(Token.dict_re, self.raw)

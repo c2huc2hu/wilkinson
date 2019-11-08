@@ -59,11 +59,6 @@ elif args.lattice_file is not None:
     lattice = Lattice()
     lattice.from_carmel_lattice(args.lattice_file)
 
-# print(ciphertext)
-# for tok in ciphertext:
-#     print(tok, tok.ciphertype)
-
-
 if args.language_model == 'gpt2':
     from gpt_lm import GPTLanguageModel # only import if necessary
     lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
