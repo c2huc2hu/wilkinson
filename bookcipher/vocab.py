@@ -9,24 +9,37 @@ try: lexeme('walk')
 except: pass
 
 
-# override some common words to reduce branching factor
-exceptions = {
-    'a': ['a', 'an'],
-    'are': ['are', 'am'],
-    'be': ['be', 'being', 'been'],
-    'being': ['be', 'being', 'been'],
-    'been': ['be', 'being', 'been'],
-    'he': ['he', 'him', 'his'],
-    'i': ['I', 'me'], # use lowercase i in vocab search, but uppercase for language modelling
-    'is': ['is'],
-    'was': ['was', 'were'],
-    'were': ['was', 'were'],
-    'have': ['have', 'has', 'had', 'having'],
-    'having': ['have', 'has', 'had', 'having'],
+# override some common words 
+# 1. to include substitutions that aren't strictly inflections e.g. they -> their
+# 2. to reduce branching factor, e.g. prevent "wouldn't" from being generated for "would"
+exceptions = {}
 
-    # not inflected forms, but corrections to enable
-    'on': ['on', 'in'], # frequently see "in" where "on" should be, e.g. pg. 2880. this distinction can be hard for non-native speakers
+# words that are all substitutions of each other
+word_families = [
+    ['a', 'an'],
+    ['are', 'am'],
+    ['be', 'being', 'been'],
+    ['have', 'had', 'has', 'having'], # override haven't
+    ['he', 'him', 'his'],
+    ['is'],
+    ['she', 'her', 'hers'],
+    ['they', 'their', 'theirs', 'them'],
+    ['was', 'were'], # override am, be, weren't etc.
+]
+for family in word_families:
+    for word in family:
+        exceptions[word] = family
+
+special_exceptions = {
+    'i': ['I', 'me', 'my'], # use lowercase i in vocab search so it sorts correctly, but use uppercase for language modelling
+    'me': ['me', 'my'],
+    'my': ['me', 'my'],
+
+    # not an inflected form, but a correction that should be enabled
+    'on': ['on', 'in'],
 }
+exceptions.update(special_exceptions)
+
 
 def inflect(word):
     '''

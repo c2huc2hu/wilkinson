@@ -74,7 +74,7 @@ class WilkinsonLattice(Lattice):
         probability_buckets = np.log(cdf[1:] - cdf[:-1])
 
         result = []
-        for raw_word, inflected_forms, prob in zip(self.vocab.words[anchor_left+1:anchor_right], self.vocab._inflected_inv_vocab[anchor_left+1:anchor_right], probability_buckets):
+        for raw_word, inflected_forms, prob in zip(self.vocab.words[anchor_left:anchor_right], self.vocab._inflected_inv_vocab[anchor_left:anchor_right], probability_buckets):
             productive_penalty = np.log(len(inflected_forms)) # distribute probability over all inflected forms
             # print(f'Distributing {prob} probability mass from word {raw_word} to {len(inflected_forms)} buckets ({prob - productive_penalty})')
             # print('Forms: ')

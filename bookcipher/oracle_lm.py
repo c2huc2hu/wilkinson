@@ -24,5 +24,5 @@ class OracleLanguageModel(LanguageModel):
 
         # multiply score by an arbitrarily large number to ignore the lattice model
         # this should score the entire sentence, but it doesn't, so need to set beam width 1.
-        return [LMScore(tokens=[word], score=100 * (word == (self.tokens + ['a']*3)[len(context)])) for word in words]
-
+        # print('bounds', words[0], words[-1])
+        return [LMScore(tokens=[word + ('*' if word != self.tokens[len(context)] else '')], score=100000000 * (word == self.tokens[len(context)])) for word in words]

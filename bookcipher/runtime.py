@@ -17,6 +17,7 @@ parser.add_argument('--lattice_file', help='path to lattice file')
 parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
 parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
 parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'none'])
+parser.add_argument('--self-learn', help='enable self-learning', action='store_true')
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 args = parser.parse_args()
 
@@ -168,8 +169,14 @@ for step in range(MAX_ITERATIONS):
 
         message_tokens = split_ciphertext(lm.decode(beam_result[0].prediction))
 
+        print('gold tokens', gold_tokens)
+        print('message tokens', message_tokens)
+
         accuracy = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
         print('New Edit distance', accuracy)
+
+    if not args.self_learn:
+        break
 
 
 print('\n\n================ DONE ===============\n\n\n')
