@@ -33,9 +33,9 @@ class WilkinsonLattice(Lattice):
                 self.lattice[i][i+1] = self._batch_probs(token)
 
                 # re-normalize probabilities
-                sum_ = sum(edge.prob for edge in self.lattice[i][i+1])
+                sum_ = sum(np.exp(edge.prob) for edge in self.lattice[i][i+1])
                 for edge in self.lattice[i][i+1]:
-                    edge.prob /= prob
+                    edge.prob -= np.log(sum_)
 
                 i += 1
 
@@ -55,12 +55,11 @@ class WilkinsonLattice(Lattice):
             elif '[' not in source_token.plaintext:
                 return [WilkinsonLatticeEdge(source_token.plaintext, 0, token=source_token)] # return unchanged plaintext for literals
             else: # condition over the whole output space
-                return [WilkinsonLatticeEdge(word, -np.log(len(self.vocab.inflected_words)), token=source_token) for word in self.vocab.inflected_words if word.endswith(source_token.suffix)]
+                return [WilkinsonLatticeEdge(word, 0, token=source_token) for word in self.vocab.inflected_words if word.endswith(source_token.suffix)]
         # no point in assigning probabilities to known words
         elif not source_token.is_unk(self.wordbank):
             inflected_forms = inflect(source_token.plaintext)
-            productive_penalty = np.log(len(inflected_forms)) # distribute probability over all inflected forms
-            return [WilkinsonLatticeEdge(form, -productive_penalty, token=source_token, uninflected_form=source_token.plaintext) for form in inflected_forms if form.endswith(source_token.suffix)]
+            return [WilkinsonLatticeEdge(form, 0, token=source_token, uninflected_form=source_token.plaintext) for form in inflected_forms if form.endswith(source_token.suffix)]
 
         # else: # interpolate position
 
@@ -82,13 +81,12 @@ class WilkinsonLattice(Lattice):
 
         result = []
         for raw_word, inflected_forms, prob in zip(self.vocab.words[anchor_left:anchor_right], self.vocab._inflected_inv_vocab[anchor_left:anchor_right], probability_buckets):
-            productive_penalty = np.log(len(inflected_forms)) # distribute probability over all inflected forms
             # print(f'Distributing {prob} probability mass from word {raw_word} to {len(inflected_forms)} buckets ({prob - productive_penalty})')
             # print('Forms: ')
             for form in inflected_forms:
                 # print(form, end=', ')
                 if form.endswith(source_token.suffix):
-                    result.append(WilkinsonLatticeEdge(form, prob - productive_penalty, token=source_token, uninflected_form=raw_word))
+                    result.append(WilkinsonLatticeEdge(form, prob, token=source_token, uninflected_form=raw_word))
             # print('')
 
         return result

@@ -8,9 +8,9 @@ import numpy as np
 from tqdm import tqdm, trange
 
 class LatticeEdge():
-    def __init__(self, label, prob):
+    def __init__(self, label, log_prob):
         self.label = label
-        self.prob = prob # should be a log prob
+        self.log_prob = log_prob # should be a log prob
 
 class Lattice():
     def __init__(self, lattice=None, start_state=None, final_state=None):
@@ -18,8 +18,8 @@ class Lattice():
         Construct a lattice
 
         Lattice is a dict of dict of list of LatticeEdges
-        lattice[from_state][to_state] = (label='word', prob=0.123)
-            {from_state: {to_state: [(label=lattice_label, prob=probability), ...]}, {...}, ...}
+        lattice[from_state][to_state] = (label='word', log_prob=0.123)
+            {from_state: {to_state: [(label=lattice_label, log_prob=probability), ...]}, {...}, ...}
         '''
 
         self.lattice = lattice
@@ -36,7 +36,7 @@ class Lattice():
         return self.lattice[from_state][to_state]
 
     def prob(self, from_state):
-        '''Return probabilities for each element in i. Batching computation lets you vectorize things and apply smoothing if necessary'''
+        '''Return log probabilities for each element in i. Batching computation lets you vectorize things and apply smoothing if necessary'''
         return self.lattice[from_state].items() # iterable of (target_state, (label, probability))
 
     def from_carmel_lattice(self, filename):
@@ -54,9 +54,9 @@ class Lattice():
                     else:
                         from_state, to_state, label, prob = m.groups()
                         label = label.strip('\'"') # strip quotes
-                        prob = np.log(float(prob)) # turn into log probs
+                        log_prob = np.log(float(prob)) # turn into log probs
 
-                        self.lattice[from_state][to_state].append(LatticeEdge(label, prob))
+                        self.lattice[from_state][to_state].append(LatticeEdge(label, log_prob))
 
                         # start state is the first state by default
                         if self.start_state is None:
@@ -71,7 +71,7 @@ class Lattice():
             for from_state in sorted(self.lattice, key=lambda from_state: from_state != self.start_state): # put the start state first
                 for to_state in self.possible_to_states(from_state):
                     for edge in self.possible_edges(from_state, to_state):
-                        print('({} ({} "{}" {}))'.format(from_state, to_state, edge.label, math.exp(edge.prob)), file=fh)
+                        print('({} ({} "{}" {}))'.format(from_state, to_state, edge.label, math.exp(edge.log_prob)), file=fh)
 
     @property
     def n_states(self):
@@ -118,7 +118,7 @@ class UnigramLanguageModel(LanguageModel):
     def score(self, context, words):
         probabilities = np.array([-self.counter[word] for word in words])
         probabilities = np.log(probabilities /probabilities.sum())
-        return [LMScore(tokens=[word], score=prob) for word, prob in zip(words, probabilities)]
+        return [LMScore(tokens=[word], score=log_prob) for word, log_prob in zip(words, probabilities)]
 
 class Beam():
     tokenizer = None
@@ -203,7 +203,7 @@ def beam_search(lm, lattice, beam_width=8):
                     raise IndexError('Number of lm probabilities ({}) doesn\'t match number of labels ({})'.format(len(lm_scores), len(lattice_edges)))
 
                 for (lattice_edge, (lm_tokens, lm_score)) in zip(lattice_edges, lm_scores):
-                    new_beam = Beam(beam.prediction + lm_tokens, lm_score, beam.lattice_prob + lattice_edge.prob, beam, lattice_edge)
+                    new_beam = Beam(beam.prediction + lm_tokens, lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge)
                     new_beams.append(new_beam)
                     # print(f'Proposing new word {word} with probability {new_beam.lm_prob} + {new_beam.lattice_prob} = {new_beam.log_prob}')
 
