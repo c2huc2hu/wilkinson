@@ -9,8 +9,8 @@ class WilkinsonLatticeEdge(LatticeEdge):
     Wrap LatticeEdge in a class to add extra attributes without breaking
     backward compatibility. This is definitely a hack.
     '''
-    def __init__(self, label, prob, token=None, uninflected_form=None):
-        super().__init__(label, prob)
+    def __init__(self, label, log_prob, token=None, uninflected_form=None):
+        super().__init__(label, log_prob)
         self.token = token
         if uninflected_form is None:
             self.uninflected_form = self.label
@@ -33,9 +33,9 @@ class WilkinsonLattice(Lattice):
                 self.lattice[i][i+1] = self._batch_probs(token)
 
                 # re-normalize probabilities
-                sum_ = sum(np.exp(edge.prob) for edge in self.lattice[i][i+1])
+                sum_ = sum(np.exp(edge.log_prob) for edge in self.lattice[i][i+1])
                 for edge in self.lattice[i][i+1]:
-                    edge.prob -= np.log(sum_)
+                    edge.log_prob -= np.log(sum_)
 
                 i += 1
 
@@ -80,13 +80,13 @@ class WilkinsonLattice(Lattice):
         probability_buckets = np.log(cdf[1:] - cdf[:-1])
 
         result = []
-        for raw_word, inflected_forms, prob in zip(self.vocab.words[anchor_left:anchor_right], self.vocab._inflected_inv_vocab[anchor_left:anchor_right], probability_buckets):
+        for raw_word, inflected_forms, log_prob in zip(self.vocab.words[anchor_left:anchor_right], self.vocab._inflected_inv_vocab[anchor_left:anchor_right], probability_buckets):
             # print(f'Distributing {prob} probability mass from word {raw_word} to {len(inflected_forms)} buckets ({prob - productive_penalty})')
             # print('Forms: ')
             for form in inflected_forms:
                 # print(form, end=', ')
                 if form.endswith(source_token.suffix):
-                    result.append(WilkinsonLatticeEdge(form, prob, token=source_token, uninflected_form=raw_word))
+                    result.append(WilkinsonLatticeEdge(form, log_prob, token=source_token, uninflected_form=raw_word))
             # print('')
 
         return result
