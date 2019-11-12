@@ -31,6 +31,12 @@ class WilkinsonLattice(Lattice):
         for token in source:
             if not token.plaintext.isspace(): # don't load space tokens
                 self.lattice[i][i+1] = self._batch_probs(token)
+
+                # re-normalize probabilities
+                sum_ = sum(edge.prob for edge in self.lattice[i][i+1])
+                for edge in self.lattice[i][i+1]:
+                    edge.prob /= prob
+
                 i += 1
 
         self.start_state = 0
