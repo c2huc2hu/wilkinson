@@ -172,6 +172,13 @@ for step in range(MAX_ITERATIONS):
 
     if not args.self_learn:
         break
+    else:
+        # Set up new lattice
+        if args.language_model == 'none':
+            print('No substitution lattice shouldnt have self-learn enabled')
+            break
+        else:
+            lattice = WilkinsonLattice(ciphertext, wordbank, args.beta)
 
 
 print('\n\n================ DONE ===============\n\n\n')
