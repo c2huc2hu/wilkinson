@@ -73,7 +73,7 @@ elif args.language_model == 'length':
 elif args.language_model == 'oracle':
     from oracle_lm import OracleLanguageModel
     args.beam_width = 1
-    lm = OracleLanguageModel('data/unsolved.ciphers.accuracy.gold')
+    lm = OracleLanguageModel(args.gold_file)
 elif args.language_model == 'none':
     if args.lattice_file is not None:
         raise ValueError('Must supply a language model if a lattice is provided')
@@ -178,7 +178,10 @@ for step in range(MAX_ITERATIONS):
             print('No substitution lattice shouldnt have self-learn enabled')
             break
         else:
+            ciphertext = [wordbank.apply(token) for token in ciphertext]
             lattice = WilkinsonLattice(ciphertext, wordbank, args.beta)
+            lattice.to_carmel_lattice('output/lattices/unsolved.accuracy{}.lattice'.format(step))
+            print('saved lattice to file')
 
 
 print('\n\n================ DONE ===============\n\n\n')
