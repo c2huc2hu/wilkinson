@@ -43,7 +43,7 @@ wordbank.load('wordbanks/wordbank.miro')
 # wordbank.load('wordbanks/wordbank.clean')
 wordbank.load('wordbanks/wordbank.clean2')
 wordbank.load('wordbanks/wordbank.2880')
-wordbank.load('wordbanks/wordbank.guess')
+# wordbank.load('wordbanks/wordbank.guess')
 print('done loading dictionary and wordbanks')
 wordbank.save('output/wordbank.full')
 
