@@ -30,7 +30,13 @@ if args.source_file is not None and args.lattice_file is not None:
 print('Config:', args)
 
 # Runtime
+
+# Collect vocabs
+# lemma dictionary
 vocab = Vocab('dict.modern')
+
+# smaller dictionary (~1000 words) to speed up words outside table
+small_vocab = Vocab('wordbanks/vocab.bnc') 
 
 wordbank = Wordbank(vocab)
 wordbank.load('wordbanks/wordbank.miro')
@@ -54,7 +60,7 @@ if args.source_file is not None:
         lattice = NoSubstitutionLattice(ciphertext)
         print('using no sub lattice')
     else:
-        lattice = WilkinsonLattice(ciphertext, wordbank, args.beta)
+        lattice = WilkinsonLattice(ciphertext, wordbank, args.beta, small_vocab)
 
 
 elif args.lattice_file is not None:
@@ -180,7 +186,7 @@ for step in range(MAX_ITERATIONS):
             break
         else:
             ciphertext = [wordbank.apply(token) for token in ciphertext]
-            lattice = WilkinsonLattice(ciphertext, wordbank, args.beta)
+            lattice = WilkinsonLattice(ciphertext, wordbank, args.beta, small_vocab)
             lattice.to_carmel_lattice('output/lattices/unsolved.accuracy{}.lattice'.format(step))
             print('saved lattice to file')
 

@@ -18,11 +18,18 @@ class WilkinsonLatticeEdge(LatticeEdge):
             self.uninflected_form = uninflected_form
 
 class WilkinsonLattice(Lattice):
-    def __init__(self, source, wordbank, beta):
+    def __init__(self, source, wordbank, beta, small_vocab=None):
         self.source = source
         self.wordbank = wordbank
         self.vocab = wordbank.vocab
         self.beta = beta
+
+        if small_vocab is None:
+            self.small_vocab = self.vocab
+        else:
+            self.small_vocab = small_vocab
+
+        # self.small_vocab = self.vocab
 
         # parse lattice into general Lattice format
         self.lattice = defaultdict(lambda: defaultdict(list))
@@ -54,8 +61,8 @@ class WilkinsonLattice(Lattice):
                 return [WilkinsonLatticeEdge('', 0, token=source_token)] # ignore empty tokens
             elif '[' not in source_token.plaintext:
                 return [WilkinsonLatticeEdge(source_token.plaintext, 0, token=source_token)] # return unchanged plaintext for literals
-            else: # condition over the whole output space
-                return [WilkinsonLatticeEdge(word, 0, token=source_token) for word in self.vocab.inflected_words if word.endswith(source_token.suffix)]
+            else: # condition over the smaller vocab, because the table cipher has common words
+                return [WilkinsonLatticeEdge(word, 0, token=source_token) for word in self.small_vocab.inflected_words if word.endswith(source_token.suffix)]
         # no point in assigning probabilities to known words
         elif not source_token.is_unk(self.wordbank):
             inflected_forms = inflect(source_token.plaintext)
@@ -84,6 +91,11 @@ class WilkinsonLattice(Lattice):
         for raw_word, inflected_forms, log_prob in zip(self.vocab.words[anchor_left:anchor_right], self.vocab._inflected_inv_vocab[anchor_left:anchor_right], probability_buckets):
             # print(f'Distributing {prob} probability mass from word {raw_word} to {len(inflected_forms)} buckets ({prob - productive_penalty})')
             # print('Forms: ')
+
+            # Skip words with extremely low probability to save work in the LM
+            if log_prob < -50:
+                continue
+
             for form in inflected_forms:
                 # print(form, end=', ')
                 if form.endswith(source_token.suffix):
