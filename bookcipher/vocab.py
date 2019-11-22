@@ -25,6 +25,8 @@ word_families = [
     ['she', 'her', 'hers'],
     ['they', 'their', 'theirs', 'them'],
     ['was', 'were'], # override am, be, weren't etc.
+    ['we', 'us', 'our'],
+    ['you', 'your', 'yours'],
 ]
 for family in word_families:
     for word in family:

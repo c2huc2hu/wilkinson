@@ -50,7 +50,9 @@ def tokenize_ciphertext(ciphertext):
         if token.startswith('+'):
             tokens[-1].suffix = token[1:] # drop leading +
         else:
-            tokens.append(Token(token))
+            t = Token(token)
+            tokens.append(t)
+
     return tokens
 
 def visualize(history):

@@ -35,6 +35,7 @@ class Token():
                 del self.col
                 self.plaintext = '<unk>'
 
+
         elif m_table:
             self.ciphertype = 'table'
             self.row = int(m_table.group('row'))
@@ -65,6 +66,16 @@ class Token():
             return False
         else:
             return self.plaintext == '<unk>'
+
+    def write(self):
+        if self.ciphertype is None:
+            return self.raw
+        elif self.ciphertype == 'table':
+            self.raw = '[{}]^'.format(self.row)
+            return self.raw
+        elif self.ciphertype == 'dict':
+            self.raw = '{}.[{}]'.format(self.page, self.row) + ('=' if self.col == 1 else '-')
+            return self.raw
 
     def __sub__(self, other):
         '''get the number of words between this and another token'''
@@ -151,18 +162,24 @@ class Wordbank():
                     continue
                 else:
                     location, source, word = line.strip().split('\t')
-                    self.add(location, word, wordbank_name + source)
+                    self.add(location, word, source)
 
     def save(self, filename):
         '''Dump wordbank to file'''
 
         with open(filename, 'w') as f:
-            for token in self._dict:
+            tokens = list(self._dict.keys())
+            tokens.sort()
+            for token in tokens:
                 print('\t'.join([token.raw, token.source, token.plaintext]), file=f)
 
     def add(self, raw, plaintext, source=''):
         '''add a word to the wordbank if it's not already there'''
         t = Token(raw, plaintext)
+
+        # dictionary is one page off for these letters
+        if t.ciphertype == 'dict' and (source == '1633' or source == '1652'):
+            t.page += 1
 
         if t in self._dict:
             return

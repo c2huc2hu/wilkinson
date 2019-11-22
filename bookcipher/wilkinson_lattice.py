@@ -66,6 +66,7 @@ class WilkinsonLattice(Lattice):
         # Positions in a modern dictionary
         # Can scale things to (x - anchor_left) / scale to scale it from 0 to 1
         anchor_left, anchor_right, mean = self.wordbank.get_anchors(source_token)
+        anchor_right += 1 # include endpoints to account for repeated words
         scale = anchor_right - anchor_left
         if scale == 0:
             raise ValueError('Found a token that can be deduced from wordbank. Did you forget to call wordbank.apply?')

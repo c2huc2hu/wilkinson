@@ -6,7 +6,7 @@ class OracleLanguageModel(LanguageModel):
 
         with open(gold_file) as fh:
             content = fh.read()
-            self.tokens = split_ciphertext(content)
+            self.tokens = split_ciphertext(content) #  + ['a'] * 1
 
             print('oracle tokens', self.tokens)
 

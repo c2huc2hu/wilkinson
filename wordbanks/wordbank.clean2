@@ -1,0 +1,149 @@
+# number  loc page    word
+# added source, cleaned up realizing that 1633 and 1652 are one off
+
+# Table section
+[160]^	1652	a
+[172]^	1652	and
+[229]^	2877	be
+[231]^	1652	bear
+[313]^	1652	by
+[341]^	1652	charge
+[351]^	2877	child
+[429]^	1652	day
+[458]^	2916	does
+[527]^	2916	fine
+[548]^	1652	foil
+[565]^	2877	for
+[570]^	2916	from
+[598]^	1652	god
+[628]^	1633	have
+[629]^	1652	he
+[653]^	1652	hope
+[664]^	1633	i
+[676]^	1633	is
+[681]^	1652	keep
+[694]^	2877	know
+[723]^	1652	line
+[729]^	1633	long
+[730]^	1652	look
+[751]^	unknown	make
+[752]^	1652	man
+[798]^	1652	not
+[803]^	1633	of
+[814]^	1652	own
+[975]^	1633	since
+[994]^	1652	some
+[997]^	2916	soon
+[1049]^	2916	such
+[1077]^	1652	that
+[1078]^	1652	the
+[1090]^	1652	thing
+[1104]^	1652	thy
+[1105]^	2916	time
+[1106]^	1633	to
+[1107]^	1652	tool
+[1151]^	2916	wait
+[1186]^	1652	who
+[1191]^	1652	will
+[1197]^	1652	with
+[1206]^	2916	write
+[1216]^	1652	you
+[1217]^	1652	young
+[1218]^	2916	your
+
+
+# Dictionary section
+# Some stuff is slightly out of order, that's fine because 1633, 1652 are one page off from the test set
+007.[24]-	1652	acquisition
+009.[14]=	1652	adieu
+015.[21]-	1652	after
+029.[29]-	2877	answer
+036.[8]-	1652	april
+044.[28]-	1652	attache
+047.[21]-	2916	attachment
+059.[19]-	1652	bearer
+065.[17]=	1652	better
+075.[29]-	1633	bosom
+075.[29]-	1652	bosom
+103.[40]=	2916	chamber
+113.[4]-	2916	cipher
+114.[20]-	1652	civil
+# 123.[2]=	2916	dispatch
+
+# 1652 is unclear around here
+#	130.[13]-	2877	conquest?
+139.[8]-	1633	confidence
+142.[13]=	1652	connection
+# fun fact: uses the old spelling connexion!
+
+# 152.[5]-	1652	correspondence or conveyance
+179.[25]-	1633	december
+189.[9]=	2916	depend
+192.[10]=	2916	deserve
+216.[14]=	1652	dollar
+
+# shows that pages are slightly off
+237.[12]-	1652	enclose
+237.[7]=	1652	encourage
+238.[12]-	2916	enclose
+239.[17]-	1652	engage
+250.[11]-	1652	eventful
+251.[6]=	2916	every
+256.[3]-	2916	exertion
+259.[12]-	2916	express
+269.[29]-	2916	favor
+284.[6]=	1652	follow
+286.[14]=	2916	for
+290.[5]-	1652	fortune
+293.[20]=	1633	friend
+293.[20]=	1652	friend
+305.[3]-	1652	gentleman
+337.[25]=	1652	high
+360.[4]-	2916	impediment
+361.[2]-	1652	important
+375.[1]=	1652	information
+# 376.[4]-	1652	intrigue
+385.[21]=	2916	intelligence
+386.[5]-	1652	interesting
+399.[22]=	2916	just
+401.[20]-	1652	kindness
+402.[24]-	2916	king
+413.[8]=	1652	letter
+448.[21]-	2916	moment
+455.[22]=	2916	my
+461.[1]-	1652	no
+464.[13]-	2916	notice
+474.[17]-	1652	or
+474.[5]=	2916	opportunity
+476.[3]-	2916	orders
+483.[14]-	1652	packet
+486.[9]-	1652	paper
+500.[28]=	2916	permit
+510.[16]-	1652	plan
+515.[11]=	1652	political
+523.[9]=	1652	precursor
+536.[22]-	1652	property
+539.[11]-	1652	protection
+543.[15]=	1652	pursuit
+545.[11]=	2916	put
+546.16]-	1652	quarter
+555.[11]-	1652	receipt
+556.[13]-	2916	receive
+557.[1]=	2916	recommend
+648.[14]=	1652	strong
+652.[18]-	2916	subject
+672.[9]-	2916	tell
+678.[6]=	2916	this
+682.[22]-	2916	timely
+689.[3]=	2916	transact
+696.[15]-	2877	true
+697.[8]-	1633	truth
+720.[4]-	2916	undertake
+724.[12]=	1652	uninformed
+743.[8]=	2916	us
+743.[12]=	2916	use
+751.[10]-	2877	whatsoever
+754.[24]=	1652	whose
+762.[11]=	1633	write
+764.[14]-	1633	you
+764.[2]=	1652	yourself

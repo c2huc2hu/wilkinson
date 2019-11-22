@@ -3,13 +3,16 @@
 
 [170]^ [1167]^ +s	literal	always
 [1235]^ +y	literal	my
+[1197]^ +out	literal	without
+[1235]^	1652	me
+[1234]^	1652	him
+[1245]^	1652	his
 
 [1222]^	2880	an
 [1233]^	1633	it
 [1234]^	1652	him
 [1235]^ +y	1652	my 
 [1235]^	1652	me
-[1245]^	1652	his
 [1249]^	2880	policy
 [1255]^	2880	Natches
 [13]^	1652	Wilkinson
