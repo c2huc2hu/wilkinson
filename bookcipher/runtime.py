@@ -9,6 +9,7 @@ from passes import apply_literals, split_ciphertext, tokenize_ciphertext, visual
 
 from general_beamsearch import beam_search, LengthLanguageModel, UnigramLanguageModel, Lattice
 from wilkinson_lattice import WilkinsonLattice, NoSubstitutionLattice
+from confidence_model import confidence_model
 
 # Load config
 import argparse
@@ -21,6 +22,7 @@ parser.add_argument('--language-model', '--lm', help='which language model to us
 parser.add_argument('--self-learn', help='enable self-learning', action='store_true')
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=int) # note: changing this can affect accuracy of even the oracle model because of pruning
+parser.add_argument('--confidence_model', help='function to determine which words to add to the wordbank', choices=['left', 'oracle'])
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
@@ -117,35 +119,13 @@ for step in range(MAX_ITERATIONS):
     # Do beam search
     beam_result = beam_search(lm, lattice, beam_width=args.beam_width)
 
-    # Get training history
-    best_history = []
-    best_beam = beam_result[0]
-    while best_beam is not None:
-        best_history.append(best_beam)
-        best_beam = best_beam.prev
-    best_history.reverse()
-
-    # Get score drops
-    prev_prob = 0
-    prev_len = 0 # length of deciphered sequence in characters
-    drops = []
-
-    for beam in best_history[1:]: # first element contains empty beam
-
-        # wilkinson specific properties
-        token = beam.lattice_edge.token
-        raw_form = beam.lattice_edge.uninflected_form
-        new_word = beam.lattice_edge.label
-
-        score_drop = prev_prob - beam.log_prob # positive
-        prev_prob = beam.log_prob
-
-        if token.is_unk(wordbank): # only add unknown tokens to wordbank 
-            drops.append(ScoreDrop(score_drop=score_drop, plaintext=new_word, ciphertext=token.raw))
-    drops.sort(key=lambda x: x.score_drop)
+    # Confidence model:
+    # Determines which words to add to the wordbank
+    # Should return a list of ScoreDrop objects in sorted order
+    drops = confidence_model(args, beam_result, wordbank)
 
     # add S substitutions to the wordbank
-    for i, drop in enumerate(drops[:args.substitutions]):
+    for drop in drops:
         try:
             wordbank.add(drop.ciphertext, drop.plaintext, source='context')
             print('adding:', drop.ciphertext, drop.plaintext)
@@ -158,15 +138,6 @@ for step in range(MAX_ITERATIONS):
 
     # Print edit distance at each step
     if args.gold_file is not None:
-
-        # Compute old edit distance for comparison purposes i.e. using old split
-        with open(args.gold_file) as fh:
-            gold_text = fh.read()
-            gold_tokens = gold_text.split()
-
-        message_tokens = lm.decode(beam_result[0].prediction).split()
-        accuracy = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
-        print('Old edit distance: {}'.format(accuracy))
 
         # Use proper split
         with open(args.gold_file) as fh:
@@ -204,26 +175,3 @@ message = lm.decode(beam_result[0].prediction)
 print('Best decoding')
 print(message)
 
-# super hacky html output
-import os
-os.makedirs('output', exist_ok=True)
-with open('output/visualize.html', 'w') as fh:
-    fh.write('''
-        <head>
-            <link rel="stylesheet" type="text/css" href="../display/style.css" />
-        </head>
-
-        <body>
-        <p>
-            <div class="key" style="background-color:lightblue">from word bank</div>
-            <div class="key" style="background-color:turquoise">literal</div>
-            <div class="key" style="background-color:rgb(0,127,0)">uncertain guess (p=0)</div>
-            <div class="key" style="background-color:rgb(0,255,0)">certain guess (p=1)</div>
-        </p>
-
-        ''')
-
-    fh.write(visualize(best_history))
-    fh.write('</body>')
-
-print('done!')
