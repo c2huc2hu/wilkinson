@@ -1,4 +1,5 @@
 from collections import namedtuple
+import os
 
 import nltk
 
@@ -19,7 +20,7 @@ parser.add_argument('--gold_file', metavar='gold-file', help='reference translat
 parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'none'])
 parser.add_argument('--self-learn', help='enable self-learning', action='store_true')
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
-parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=int)
+parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=int) # note: changing this can affect accuracy of even the oracle model because of pruning
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
@@ -88,7 +89,10 @@ elif args.language_model == 'none':
         args.beam_width = 1
         lm = LengthLanguageModel()
 else:
-    raise ValueError('Invalid language model', args.language_model)
+    # Provided a path to a fine-tuned GPT
+    assert os.file.isdir(args.language_model)
+    from gpt_lm import GPTLanguageModel
+    lm = GPTLanguageModel(args.language_model, args.language_model)
 
 print('Loaded lattice and LM')
 

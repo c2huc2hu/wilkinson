@@ -11,3 +11,7 @@ output
 
 *.swp
 .DS_Store
+
+# Data files for training language models. Not sure what the copyright is on them, so I provide instructions to reproduce instead
+language-models/cofea/from-website.txt
+language-models/wilkinson/wilkinson_letters.txt
