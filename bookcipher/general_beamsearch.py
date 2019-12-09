@@ -3,6 +3,7 @@ from datetime import datetime
 import math
 import re
 import os
+import copy
 
 import numpy as np
 from tqdm import tqdm, trange
@@ -188,13 +189,12 @@ def beam_search(lm, lattice, beam_width=8):
             raise IndexError('State {} has no successors'.format(i))
 
         # if there's only one possibility, don't run the language model on it
-        # disabled this for now to allow recovering tokens
         elif len(lattice_edges) == 1:
             for beam in beams:
-                beam.prediction.extend(lm.encode(lattice_edges[0].label))
-            state = next_state
-            continue
-
+                new_beam = copy.copy(beam)
+                new_beam.prev = beam
+                new_beam.prediction.extend(lm.encode(lattice_edges[0].label))
+                new_beams.append(new_beam)
         else:
             for beam in tqdm(beams):
                 lm_scores = lm.score(beam.prediction, [edge.label for edge in lattice_edges])
@@ -212,6 +212,7 @@ def beam_search(lm, lattice, beam_width=8):
         # Dedupe beams. Can get duplicates if two words in the dictionary are inflected the same way
         new_beams = {tuple(beam.prediction): beam for beam in new_beams}.values()
         history.append(new_beams)
+        print('History', len(history))
 
         # Sort beams by probability
         beams = sorted(new_beams, key=lambda beam: beam.log_prob, reverse=True)

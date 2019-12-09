@@ -21,7 +21,6 @@ class OracleLanguageModel(LanguageModel):
     def score(self, context, words):
         '''Take a list of tokens as context and list of words. Return a list of LMScore for each word'''
 
-
         # multiply score by an arbitrarily large number to ignore the lattice model
         # this should score the entire sentence, but it doesn't, so need to set beam width 1.
         # print('bounds', words[0], words[-1])
