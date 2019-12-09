@@ -1,3 +1,4 @@
+
 # Confidence models
 # Determine which words to add to the wordbank for self-learning
 
@@ -34,7 +35,7 @@ def confidence_model(args, beam_result, wordbank):
         # wilkinson specific properties
         token = beam.lattice_edge.token
         raw_form = beam.lattice_edge.uninflected_form
-        new_word = beam.lattice_edge.label
+        new_word = beam.lattice_edge.label.lower()
 
         score_drop = prev_prob - beam.log_prob # positive
         prev_prob = beam.log_prob
@@ -51,8 +52,7 @@ def confidence_model(args, beam_result, wordbank):
                 content = fh.read()
                 gold_tokens = split_ciphertext(content) #  + ['a'] * 1
 
-
-            if gold_tokens[i] == new_word:
+            if token.is_unk(wordbank) and gold_tokens[i] == new_word:
                 drops.append(ScoreDrop(score_drop=0, plaintext=new_word, ciphertext=token.raw))
 
     drops.sort(key=lambda x: x.score_drop)
