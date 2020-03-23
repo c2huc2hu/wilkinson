@@ -18,7 +18,7 @@ parser.add_argument('-b', '--beam-width', nargs='?', default=4, help='width of b
 parser.add_argument('--lattice_file', help='path to lattice file')
 parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
 parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
-parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'none'])
+parser.add_argument('--language-model', '--lm', help='which language model to use') 
 parser.add_argument('--self-learn', help='enable self-learning', action='store_true')
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=int) # note: changing this can affect accuracy of even the oracle model because of pruning
@@ -92,7 +92,7 @@ elif args.language_model == 'none':
         lm = LengthLanguageModel()
 else:
     # Provided a path to a fine-tuned GPT
-    assert os.file.isdir(args.language_model)
+    assert os.path.isdir(args.language_model)
     from gpt_lm import GPTLanguageModel
     lm = GPTLanguageModel(args.language_model, args.language_model)
 
@@ -123,6 +123,7 @@ for step in range(MAX_ITERATIONS):
     # Determines which words to add to the wordbank
     # Should return a list of ScoreDrop objects in sorted order
     drops = confidence_model(args, beam_result, wordbank)
+    print('drops', drops)
 
     # add S substitutions to the wordbank
     for drop in drops:

@@ -8,9 +8,12 @@ output
 .xlsx
 *.out
 *.prof
+*.pkl
 
 *.swp
 .DS_Store
+
+runs
 
 # Data files for training language models. Not sure what the copyright is on them, so I provide instructions to reproduce instead
 language-models/cofea/*
