@@ -93,7 +93,7 @@ elif args.language_model == 'none' or args.language_model is None:
         lm = LengthLanguageModel()
 else:
     # Provided a path to a fine-tuned GPT
-    assert os.is_dir(args.language_model)
+    assert os.path.isdir(args.language_model)
     from gpt_lm import GPTLanguageModel
     lm = GPTLanguageModel(args.language_model, args.language_model)
 
@@ -133,6 +133,7 @@ for step in range(MAX_ITERATIONS):
     # Determines which words to add to the wordbank
     # Should return a list of ScoreDrop objects in sorted order
     drops = confidence_model(args, beam_result, wordbank)
+    print('drops', drops)
 
     # add S substitutions to the wordbank
     for drop in drops:

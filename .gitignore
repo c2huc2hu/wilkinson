@@ -8,10 +8,17 @@ output
 .xlsx
 *.out
 *.prof
+*.pkl
 
 *.swp
 .DS_Store
 
+runs
+
 # Data files for training language models. Not sure what the copyright is on them, so I provide instructions to reproduce instead
-language-models/cofea/from-website.txt
-language-models/wilkinson/wilkinson_letters.txt
+language-models/cofea/*
+!language-models/cofea/README.md
+language-models/wilkinson/*
+!language-models/wilkinson/README.md
+language-models/gold/*
+!language-models/gold/README.md

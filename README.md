@@ -1,6 +1,12 @@
 # Decrypting the Wilkinson book cipher
 
-TODO: write a description
+[link to paper]
+
+This repo presents a method for solving word-based substitution ciphers with a neural language model.
+The source code is in `bookcipher`
+`wordbanks` contains wordbanked letters, i.e. the training set
+
+
 
 
 ## Installation
@@ -16,5 +22,5 @@ TODO: write a description
 
 ## Running
 
-    python wordbank/runtime.py --lm gpt2 -b=4
-    python wordbank/runtime.py --help # for more options
+    python bookcipher/runtime.py --lm gpt2 -b=4
+    python bookcipher/runtime.py --help # for more options
