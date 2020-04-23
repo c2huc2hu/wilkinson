@@ -18,7 +18,7 @@ parser.add_argument('-b', '--beam-width', nargs='?', default=4, help='width of b
 parser.add_argument('--lattice_file', help='path to lattice file')
 parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
 parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
-parser.add_argument('--language-model', '--lm', help='which language model to use') 
+parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'ngram', 'none'])
 parser.add_argument('--self-learn', help='enable self-learning', action='store_true')
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=int) # note: changing this can affect accuracy of even the oracle model because of pruning
@@ -26,8 +26,8 @@ parser.add_argument('--confidence_model', help='function to determine which word
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
-    args.source_file = 'data/unsolved.ciphers.accuracy.clean'
-    args.gold_file = 'data/unsolved.ciphers.accuracy.gold'
+    args.source_file = 'data/eval/ciphertext.txt'
+    args.gold_file = 'data/eval/plaintext.txt'
 if args.source_file is not None and args.lattice_file is not None:
     raise ValueError('Cannot supply both a lattice and source file')
 print('Config:', args)
@@ -39,14 +39,12 @@ print('Config:', args)
 vocab = Vocab('dict.modern')
 
 # smaller dictionary (~1000 words) to speed up words outside table
-small_vocab = Vocab('wordbanks/vocab.bnc') 
+small_vocab = Vocab('wordbanks/vocab.bnc')
 
 wordbank = Wordbank(vocab)
 wordbank.load('wordbanks/wordbank.miro')
-# wordbank.load('wordbanks/wordbank.clean')
 wordbank.load('wordbanks/wordbank.clean2')
 wordbank.load('wordbanks/wordbank.2880')
-# wordbank.load('wordbanks/wordbank.guess')
 print('done loading dictionary and wordbanks')
 wordbank.save('output/wordbank.full')
 
@@ -75,7 +73,7 @@ if args.language_model == 'gpt2':
     lm = GPTLanguageModel('gpt2', 'gpt2')
 elif args.language_model == 'gpt2-large':
     from gpt_lm import GPTLanguageModel
-    lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large')
+    lm = GPTLanguageModel('gpt2-large', 'gpt2-large')
 elif args.language_model == 'unigram':
     lm = UnigramLanguageModel()
 elif args.language_model == 'length':
@@ -84,7 +82,10 @@ elif args.language_model == 'oracle':
     from oracle_lm import OracleLanguageModel
     args.beam_width = 1
     lm = OracleLanguageModel(args.gold_file)
-elif args.language_model == 'none':
+elif args.language_model == 'ngram':
+    from ngram_lm import NGramLanguageModel
+    lm = NGramLanguageModel()
+elif args.language_model == 'none' or args.language_model is None:
     if args.lattice_file is not None:
         raise ValueError('Must supply a language model if a lattice is provided')
     else:
@@ -105,6 +106,15 @@ if args.language_model != 'none':
 ScoreDrop = namedtuple("ScoreDrop", ['score_drop', 'plaintext', 'ciphertext'])
 MAX_ITERATIONS = 10
 STOP_PERCENTAGE = 90.0 # stop when this much of the wordbank is known
+
+def score(message, gold):
+    '''message, gold are both strings'''
+    message_tokens = split_ciphertext(message)
+    gold_tokens = split_ciphertext(gold)
+
+    edit_distance = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
+    accuracy = 1 - edit_distance / len(gold_tokens)
+    return accuracy
 
 for step in range(MAX_ITERATIONS):
     # Count unk tokens. break if more than STOP_PERCENTAGE% of tokens are known
@@ -140,18 +150,10 @@ for step in range(MAX_ITERATIONS):
     # Print edit distance at each step
     if args.gold_file is not None:
 
-        # Use proper split
         with open(args.gold_file) as fh:
             gold_text = fh.read()
-            gold_tokens = split_ciphertext(gold_text)
 
-        message_tokens = split_ciphertext(lm.decode(beam_result[0].prediction))
-
-        print('gold tokens', gold_tokens)
-        print('message tokens', message_tokens)
-
-        accuracy = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
-        print('New Edit distance', accuracy)
+        print('Accuracy: ', score(lm.decode(beam_result[0].prediction), gold_text))
 
     if not args.self_learn:
         break
@@ -172,7 +174,9 @@ print('Final beams')
 for beam in beam_result:
     print(str(beam))
 
-message = lm.decode(beam_result[0].prediction)
 print('Best decoding')
+message = lm.decode(beam_result[0].prediction)
 print(message)
 
+if args.gold_file is not None:
+    print('Final accuracy: ', score(message, gold_text))

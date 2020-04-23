@@ -48,7 +48,7 @@ class Lattice():
             self.lattice = defaultdict(lambda: defaultdict(list))
             for line in f:
                 if line.strip():
-                    m = re.match(r'\((\w+)\s*\((\w+)\s+([\w\'" -]+)\s+([\d.e-]+)\)\)', line)
+                    m = re.match(r'\((\w+)\s*\((\w+)\s+([\w\'" .-]+)\s+([\d.e-]+)\)\)', line)
 
                     if not m:
                         print('couldnt parse line', line)
