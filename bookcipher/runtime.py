@@ -72,7 +72,7 @@ elif args.lattice_file is not None:
 
 if args.language_model == 'gpt2':
     from gpt_lm import GPTLanguageModel # only import if necessary
-    lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2')
+    lm = GPTLanguageModel('gpt2', 'gpt2')
 elif args.language_model == 'gpt2-large':
     from gpt_lm import GPTLanguageModel
     lm = GPTLanguageModel('/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large', '/nfs/cold_project/users/chrischu/data/pytorch-transformers/gpt2-large')

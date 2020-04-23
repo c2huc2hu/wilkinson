@@ -99,7 +99,7 @@ class Vocab():
                 self._vocab[line] = idx
                 self._inv_vocab.append(line)
 
-            self._inflected_inv_vocab = [inflect(word) for word in self._vocab]
+            self._inflected_inv_vocab = [inflect(word) for word in self._inv_vocab]
             self._flat_inflected_vocab = list(itertools.chain.from_iterable(self._inflected_inv_vocab))
 
         # mapping vocab -> flat_*_vocab, such that flat_inflected_vocab[_flat_index[i]:_flat_index[i+1]] are all versions of the same word
