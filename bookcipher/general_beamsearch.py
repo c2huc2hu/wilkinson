@@ -187,14 +187,6 @@ def beam_search(lm, lattice, beam_width=8):
         # error out if there are no possibilites
         if len(lattice_edges) == 0:
             raise IndexError('State {} has no successors'.format(i))
-
-        # if there's only one possibility, don't run the language model on it
-        elif len(lattice_edges) == 1:
-            for beam in beams:
-                new_beam = copy.copy(beam)
-                new_beam.prev = beam
-                new_beam.prediction.extend(lm.encode(lattice_edges[0].label))
-                new_beams.append(new_beam)
         else:
             for beam in tqdm(beams):
                 lm_scores = lm.score(beam.prediction, [edge.label for edge in lattice_edges])
@@ -203,7 +195,7 @@ def beam_search(lm, lattice, beam_width=8):
                     raise IndexError('Number of lm probabilities ({}) doesn\'t match number of labels ({})'.format(len(lm_scores), len(lattice_edges)))
 
                 for (lattice_edge, (lm_tokens, lm_score)) in zip(lattice_edges, lm_scores):
-                    new_beam = Beam(beam.prediction + lm_tokens, lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge)
+                    new_beam = Beam(beam.prediction + lm_tokens, beam.lm_prob + lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge)
                     new_beams.append(new_beam)
                     # print(f'Proposing new word {word} with probability {new_beam.lm_prob} + {new_beam.lattice_prob} = {new_beam.log_prob}')
 

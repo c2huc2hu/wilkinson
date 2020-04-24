@@ -33,3 +33,4 @@ Some things I noticed while doing transcription that might be helpful
 
 - Ciphertext sometimes includes words in French (dans, pour, lui-même, etc.). Just use the English translation (examples on p.3063)
 - Look out for long S (looks like the integral sign or a cursive f), older spellings (compleat, connexion, etc.)
+- The suffixes (written as superscripts) are usually -ing, -ed, -s, -ly and -est, despite look

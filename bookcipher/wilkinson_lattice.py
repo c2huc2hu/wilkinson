@@ -140,7 +140,7 @@ if __name__ == '__main__':
     vocab = Vocab('dict.modern')
     wb = Wordbank(vocab)
     wb.load('wordbanks/wordbank.clean2')
-    ciphertext = tokenize_ciphertext('[664]^ [526]^ [629]^ [1078]^ [752]^ [1216]^ 192.[10]- [172]^ [177]^ [782]^', ) # first line of the test set
-    lattice = WilkinsonLattice(ciphertext, wb, 5, vocab)
-    lattice.to_carmel_lattice('lattices/wilkinson_head.lattice')
 
+    ciphertext = tokenize_ciphertext('[664]^ [526]^ [629]^ [1078]^ [752]^ [1216]^ 192.[10]- [172]^ [177]^ [782]^') # first line of the test set
+    lattice = WilkinsonLattice(ciphertext, wb, 5, vocab)
+    lattice.to_carmel_lattice('output/lattices/wilkinson_head.lattice')
