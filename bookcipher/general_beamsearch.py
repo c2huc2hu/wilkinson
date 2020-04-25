@@ -124,16 +124,20 @@ class UnigramLanguageModel(LanguageModel):
 class Beam():
     tokenizer = None
 
-    def __init__(self, prediction='', lm_prob=0, lattice_prob=0, prev=None, lattice_edge=None):
+    def __init__(self, prediction='', lm_prob=0, lattice_prob=0, prev=None, lattice_edge=None, oracle_score=None):
         self.prediction = prediction
         self.lm_prob = lm_prob
         self.lattice_prob = lattice_prob
         self.log_prob = lm_prob + lattice_prob
         self.prev = prev
         self.lattice_edge = lattice_edge
+        self.oracle_score = oracle_score
 
-    def __lt__(self, other):
-        return self.log_prob < other.log_prob
+    def score(self):
+        if self.oracle_score is None:
+            return self.log_prob
+        else:
+            return 10000000 + self.log_prob
 
     def __str__(self):
         if Beam.decode is None:
@@ -142,9 +146,13 @@ class Beam():
             return "{}/{}:\n    {} + {} = {}".format(self.prediction, Beam.decode(self.prediction), self.lm_prob, self.lattice_prob, self.log_prob)
 
 
-def beam_search(lm, lattice, beam_width=8):
+def beam_search(lm, lattice, beam_width=8, oracle=None):
     '''
-    Do a beam search on a sausage lattice. LM should be an instance of LanguageModel, Lattice should be an instance of Lattice
+    Do a beam search on a sausage lattice
+
+    lm should be an instance of LanguageModel
+    lattice should be an instance of Lattice.
+    oracle should also be an instance of language model
     
     Return beams sorted best to worst
     '''
@@ -152,6 +160,9 @@ def beam_search(lm, lattice, beam_width=8):
     state = lattice.start_state
     beams = [Beam([])]
     history = []
+
+    if oracle is not None and beam_width != 1:
+        raise ValueError('Beam width must be 1 for oracle to work')
 
     # set up decoder for nicely debugging
     try:
@@ -190,24 +201,32 @@ def beam_search(lm, lattice, beam_width=8):
         else:
             for beam in tqdm(beams):
                 lm_scores = lm.score(beam.prediction, [edge.label for edge in lattice_edges])
+                if oracle:
+                    oracle_scores = oracle.score(beam.prediction, [edge.label for edge in lattice_edges])
 
                 if len(lattice_edges) != len(lm_scores):
                     raise IndexError('Number of lm probabilities ({}) doesn\'t match number of labels ({})'.format(len(lm_scores), len(lattice_edges)))
 
-                for (lattice_edge, (lm_tokens, lm_score)) in zip(lattice_edges, lm_scores):
-                    new_beam = Beam(beam.prediction + lm_tokens, beam.lm_prob + lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge)
-                    new_beams.append(new_beam)
+                if oracle:
+                    for (lattice_edge, (lm_tokens, lm_score), (oracle_tokens, oracle_score)) in zip(lattice_edges, lm_scores, oracle_scores):
+                        new_beam = Beam(beam.prediction + lm_tokens, beam.lm_prob + lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge, oracle_score=oracle_score)
+                        new_beams.append(new_beam)
+                else:
+                    for (lattice_edge, (lm_tokens, lm_score)) in zip(lattice_edges, lm_scores):
+                        new_beam = Beam(beam.prediction + lm_tokens, beam.lm_prob + lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge)
+                        new_beams.append(new_beam)
                     # print(f'Proposing new word {word} with probability {new_beam.lm_prob} + {new_beam.lattice_prob} = {new_beam.log_prob}')
 
         state = next_state
 
         # Dedupe beams. Can get duplicates if two words in the dictionary are inflected the same way
         new_beams = {tuple(beam.prediction): beam for beam in new_beams}.values()
+
         history.append(new_beams)
         print('History', len(history))
 
         # Sort beams by probability
-        beams = sorted(new_beams, key=lambda beam: beam.log_prob, reverse=True)
+        beams = sorted(new_beams, key=Beam.score, reverse=True)
         beams = beams[:beam_width]
 
         # for debugging long running things

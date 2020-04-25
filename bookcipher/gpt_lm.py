@@ -43,8 +43,6 @@ class GPTLanguageModel(LanguageModel):
         #   which could make a difference for comparing e.g. "saw" and "stared" in the sentence "I ___ it".
         #   This implementation could be improved by queuing up words with only one possibility and passing them to `words` at once
 
-        print('Calling GPT with', context, words)
-
         # Can't run GPT on sentences with length 1. Prepend EOS
         if not context:
             context = [self.tokenizer.vocab_size - 1] + context
@@ -95,11 +93,8 @@ class GPTLanguageModel(LanguageModel):
                     logits = torch.cat((past_logits[:, -1, :].expand(true_batch_size, 1, -1), present_logits[:, :-1]), dim=1).transpose(1,2)
                     targets = present_input
 
-                    print(logits.shape, targets.shape)
-
                     loss_fcn = torch.nn.CrossEntropyLoss(reduction='none')
                     losses = loss_fcn(logits, targets)
-                    print(losses)
                     for b in range(true_batch_size):
                         losses[b,batch_lengths[b]:] = 0
                     log_probs[batch_indices] = losses.sum(axis=1).detach().cpu().numpy()
