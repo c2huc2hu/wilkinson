@@ -23,6 +23,7 @@ parser.add_argument('--self-learn', help='enable self-learning', action='store_t
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=int) # note: changing this can affect accuracy of even the oracle model because of pruning
 parser.add_argument('--confidence_model', help='function to determine which words to add to the wordbank', choices=['left', 'oracle'])
+parser.add_argument('--oracle', help='choose the best beam with an oracle (cheating experiment)', action='store_true')
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
@@ -78,10 +79,6 @@ elif args.language_model == 'unigram':
     lm = UnigramLanguageModel()
 elif args.language_model == 'length':
     lm = LengthLanguageModel()
-elif args.language_model == 'oracle':
-    from oracle_lm import OracleLanguageModel
-    args.beam_width = 1
-    lm = OracleLanguageModel(args.gold_file)
 elif args.language_model == 'ngram':
     from ngram_lm import NGramLanguageModel
     lm = NGramLanguageModel()
@@ -96,6 +93,13 @@ else:
     assert os.path.isdir(args.language_model)
     from gpt_lm import GPTLanguageModel
     lm = GPTLanguageModel(args.language_model, args.language_model)
+
+if args.oracle:
+    from oracle_lm import OracleLanguageModel
+    args.beam_width = 1
+    oracle = OracleLanguageModel(args.gold_file)
+else:
+    oracle = None
 
 print('Loaded lattice and LM')
 
@@ -127,7 +131,7 @@ for step in range(MAX_ITERATIONS):
         break
 
     # Do beam search
-    beam_result = beam_search(lm, lattice, beam_width=args.beam_width)
+    beam_result = beam_search(lm, lattice, beam_width=args.beam_width, oracle=oracle)
 
     # Confidence model:
     # Determines which words to add to the wordbank

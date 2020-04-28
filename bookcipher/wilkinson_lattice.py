@@ -89,7 +89,7 @@ class WilkinsonLattice(Lattice):
 
         result = []
         for raw_word, inflected_forms, log_prob in zip(self.vocab.words[anchor_left:anchor_right], self.vocab._inflected_inv_vocab[anchor_left:anchor_right], probability_buckets):
-            # print(f'Distributing {prob} probability mass from word {raw_word} to {len(inflected_forms)} buckets ({prob - productive_penalty})')
+            # print(f'Distributing {log_prob} probability mass from word {raw_word} to {len(inflected_forms)} buckets ')
             # print('Forms: ')
 
             # Skip words with extremely low probability to save work in the LM
