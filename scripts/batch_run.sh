@@ -9,7 +9,7 @@ head -n 11 data/eval/plaintext.txt > data/eval/plaintext-first11.txt
 head -n 22 data/eval/ciphertext.txt > data/eval/ciphertext-first22.txt
 head -n 22 data/eval/plaintext.txt > data/eval/plaintext-first22.txt
 
-python3 bookcipher/runtime.py --lm oracle -b 1
+time python3 bookcipher/runtime.py --lm gpt2 --oracle
 echo "==================== Done run #1 ========================================"
 
 time python3 bookcipher/runtime.py --lm gpt2 -b 1 --source_file data/eval/ciphertext-first11.txt --gold_file data/eval/plaintext-first11.txt

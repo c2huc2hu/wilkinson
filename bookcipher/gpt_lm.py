@@ -16,8 +16,6 @@ class GPTLanguageModel(LanguageModel):
         self.tokenizer = GPT2Tokenizer.from_pretrained(tokenizer_path)
         print('loaded tokenizer')
 
-        self.num_calls = 0
-
     def encode(self, word):
         return self.tokenizer.encode(word)
 
@@ -45,7 +43,7 @@ class GPTLanguageModel(LanguageModel):
 
         # Can't run GPT on sentences with length 1. Prepend EOS
         if not context:
-            context = [self.tokenizer.vocab_size - 1] + context
+            context = [self.tokenizer.vocab_size - 1]
         # Limit the size of context because GPT can only handle 512 wordpieces
         context = context[-64:]
 
@@ -99,12 +97,12 @@ class GPTLanguageModel(LanguageModel):
                         losses[b,batch_lengths[b]:] = 0
                     log_probs[batch_indices] = losses.sum(axis=1).detach().cpu().numpy()
 
-                # skip GPT call for batches of words of length 1
+                # skip extra GPT call for batches of words of length 1
                 else:
                     logits = past_logits[:, -1, :].expand(true_batch_size, -1)
                     targets = present_input[:,0]
 
-                    loss_fcn = torch.nn.CrossEntropyLoss()
+                    loss_fcn = torch.nn.CrossEntropyLoss(reduction='none')
                     losses = loss_fcn(logits, targets)
                     log_probs[batch_indices] = losses.detach().cpu().numpy()
 
@@ -123,8 +121,6 @@ def test():
     beams = beam_search(gpt, l, beam_width=16)
     for b in beams:
         print(str(b))
-
-    print('num gpt calls', gpt.num_calls)
 
 if __name__ == '__main__':
     test()
