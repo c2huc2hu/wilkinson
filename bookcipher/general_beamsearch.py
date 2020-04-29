@@ -117,8 +117,8 @@ class UnigramLanguageModel(LanguageModel):
         return ' '.join(tokens)
 
     def score(self, context, words):
-        probabilities = np.array([-self.counter[word] for word in words])
-        probabilities = np.log(probabilities /probabilities.sum())
+        probabilities = np.array([self.counter[word] + 0.001 for word in words])
+        probabilities = np.log(probabilities / probabilities.sum())
         return [LMScore(tokens=[word], score=log_prob) for word, log_prob in zip(words, probabilities)]
 
 class Beam():
@@ -137,7 +137,7 @@ class Beam():
         if self.oracle_score is None:
             return self.log_prob
         else:
-            return 10000000 + self.log_prob
+            return 10000000 * self.oracle_score  + self.log_prob
 
     def __str__(self):
         if Beam.decode is None:
@@ -202,7 +202,7 @@ def beam_search(lm, lattice, beam_width=8, oracle=None):
             for beam in tqdm(beams):
                 lm_scores = lm.score(beam.prediction, [edge.label for edge in lattice_edges])
                 if oracle:
-                    oracle_scores = oracle.score(beam.prediction, [edge.label for edge in lattice_edges])
+                    oracle_scores = oracle.score(i, [edge.label for edge in lattice_edges])
 
                 if len(lattice_edges) != len(lm_scores):
                     raise IndexError('Number of lm probabilities ({}) doesn\'t match number of labels ({})'.format(len(lm_scores), len(lattice_edges)))

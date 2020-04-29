@@ -16,9 +16,9 @@ class OracleLanguageModel(LanguageModel):
         '''Decode a series of tokens. Return a string'''
         return ' '.join(tokens)
 
-    def score(self, context, words):
+    def score(self, index, words):
         '''
-        Take a list of tokens as context and list of words. Return a list of LMScore for each word.
-        Score 1 is correct, score 0 is incorrect
+        Return a list of LMScore for the `index`th word, with score indicating if the token is correct
         '''
-        return [LMScore(tokens=[word + ('*' if word != self.tokens[len(context)] else '')], score=100000000 * (word == self.tokens[len(context)])) for word in words]
+        result = [LMScore(tokens=[word + ('*' if word != self.tokens[index] else '')], score=(word == self.tokens[index])) for word in words]
+        return result
