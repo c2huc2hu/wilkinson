@@ -23,7 +23,7 @@ parser.add_argument('--self-learn', help='enable self-learning', action='store_t
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=int) # note: changing this can affect accuracy of even the oracle model because of pruning
 parser.add_argument('--confidence_model', help='function to determine which words to add to the wordbank', choices=['left', 'oracle'])
-parser.add_argument('--oracle', help='choose the best beam with an oracle (cheating experiment)', action='store_true')
+parser.add_argument('--oracle', help='choose the best beam with an oracle (cheating experiment)', action='store_true') # warning: using this with GPT gives lower accuracy results because GPT decodes periods without a leading space keeping them from being separated. to get accurate accuracy results, use a different LM
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
