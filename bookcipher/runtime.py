@@ -21,6 +21,7 @@ parser.add_argument('--gold_file', metavar='gold-file', help='reference translat
 parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'ngram', 'none'])
 parser.add_argument('--self-learn', help='enable self-learning', action='store_true')
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
+parser.add_argument('--alpha', default=1, help='exponent on the lattice model', type=float)
 parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=float) # note: changing this can slightly affect accuracy of even the oracle model because of pruning
 parser.add_argument('--confidence_model', help='function to determine which words to add to the wordbank', choices=['left', 'oracle'])
 parser.add_argument('--oracle', help='choose the best beam with an oracle (cheating experiment)', action='store_true') # warning: using this with GPT gives lower accuracy results because GPT decodes periods without a leading space keeping them from being separated. to get accurate accuracy results, use a different LM

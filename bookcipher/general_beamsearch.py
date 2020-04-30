@@ -124,11 +124,11 @@ class UnigramLanguageModel(LanguageModel):
 class Beam():
     tokenizer = None
 
-    def __init__(self, prediction='', lm_prob=0, lattice_prob=0, prev=None, lattice_edge=None, oracle_score=None):
+    def __init__(self, prediction='', lm_prob=0, lattice_prob=0, prev=None, lattice_edge=None, oracle_score=None, alpha=1):
         self.prediction = prediction
         self.lm_prob = lm_prob
         self.lattice_prob = lattice_prob
-        self.log_prob = lm_prob + lattice_prob
+        self.log_prob = lm_prob + alpha * lattice_prob
         self.prev = prev
         self.lattice_edge = lattice_edge
         self.oracle_score = oracle_score
@@ -146,19 +146,20 @@ class Beam():
             return "{}/{}:\n    {} + {} = {}".format(self.prediction, Beam.decode(self.prediction), self.lm_prob, self.lattice_prob, self.log_prob)
 
 
-def beam_search(lm, lattice, beam_width=8, oracle=None):
+def beam_search(lm, lattice, beam_width=8, oracle=None, alpha=1):
     '''
     Do a beam search on a sausage lattice
 
     lm should be an instance of LanguageModel
     lattice should be an instance of Lattice.
     oracle should also be an instance of language model
+    alpha - parameter equivalent to an exponent on the lattice model (a common(?) trick for noisy channele models)
     
     Return beams sorted best to worst
     '''
     print('Starting beam search')
     state = lattice.start_state
-    beams = [Beam([])]
+    beams = [Beam(prediction=[], alpha=1)]
     history = []
 
     if oracle is not None and beam_width != 1:
@@ -209,11 +210,11 @@ def beam_search(lm, lattice, beam_width=8, oracle=None):
 
                 if oracle:
                     for (lattice_edge, (lm_tokens, lm_score), (oracle_tokens, oracle_score)) in zip(lattice_edges, lm_scores, oracle_scores):
-                        new_beam = Beam(beam.prediction + lm_tokens, beam.lm_prob + lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge, oracle_score=oracle_score)
+                        new_beam = Beam(beam.prediction + lm_tokens, beam.lm_prob + lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge, oracle_score=oracle_score, alpha=alpha)
                         new_beams.append(new_beam)
                 else:
                     for (lattice_edge, (lm_tokens, lm_score)) in zip(lattice_edges, lm_scores):
-                        new_beam = Beam(beam.prediction + lm_tokens, beam.lm_prob + lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge)
+                        new_beam = Beam(beam.prediction + lm_tokens, beam.lm_prob + lm_score, beam.lattice_prob + lattice_edge.log_prob, beam, lattice_edge, alpha=alpha)
                         new_beams.append(new_beam)
                     # print(f'Proposing new word {word} with probability {new_beam.lm_prob} + {new_beam.lattice_prob} = {new_beam.log_prob}')
 
