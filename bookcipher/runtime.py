@@ -132,7 +132,7 @@ for step in range(MAX_ITERATIONS):
         break
 
     # Do beam search
-    beam_result = beam_search(lm, lattice, beam_width=args.beam_width, oracle=oracle)
+    beam_result = beam_search(lm, lattice, beam_width=args.beam_width, oracle=oracle, args.alpha)
 
     # Confidence model:
     # Determines which words to add to the wordbank
