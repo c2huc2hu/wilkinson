@@ -18,7 +18,7 @@ parser.add_argument('-b', '--beam-width', nargs='?', default=4, help='width of b
 parser.add_argument('--lattice_file', help='path to lattice file')
 parser.add_argument('--source_file', metavar='source-file', help='source file to decode')
 parser.add_argument('--gold_file', metavar='gold-file', help='reference translation for scoring accuracy')
-parser.add_argument('--language-model', '--lm', help='which language model to use', choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'ngram', 'none'])
+parser.add_argument('--language-model', '--lm', help='which language model to use') # , choices=['gpt2', 'gpt2-large', 'unigram', 'length', 'oracle', 'ngram', 'none'])
 parser.add_argument('--self-learn', help='enable self-learning', action='store_true')
 parser.add_argument('-S', '--substitutions', nargs='?', default=5, help='number of substitutions to make each decoding', type=int)
 parser.add_argument('--alpha', default=1, help='exponent on the lattice model', type=float)
