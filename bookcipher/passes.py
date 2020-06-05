@@ -35,7 +35,6 @@ split_re = re.compile(r'''
     \s
     |(\d+\.\[\d+\][=-]) # dict cipher
     |(\[\d+\]\^)  # table cipher
-    |(\s\.)       # separate out periods
 ''', flags=re.VERBOSE)
 def split_ciphertext(ciphertext):
     return [match for match in re.split(split_re, ciphertext) if match]

@@ -8,4 +8,4 @@ grep  "Final accuracy" $1 | sed 's/Final accuracy: \+//g'
 
 echo '====='
 # print perplexity numbers
-grep -B 1 "Best decoding" $1 | grep "=" | sed 's/[+= ]\+/ /g' | sed 's/\^ \+//g'
+grep -B 2 "Best decoding" $1 | grep "=" | sed 's/[+= ]\+/ /g' | sed 's/\^ \+//g'

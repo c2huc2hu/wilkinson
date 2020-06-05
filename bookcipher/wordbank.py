@@ -35,7 +35,6 @@ class Token():
                 del self.col
                 self.plaintext = '<unk>'
 
-
         elif m_table:
             self.ciphertype = 'table'
             self.row = int(m_table.group('row'))
@@ -49,7 +48,7 @@ class Token():
             if self.row >= 1221: # words added afterwards
                 self.ciphertype = None
                 del self.row
-                self.plaintext = '<unk>'
+                self.plaintext = 'America'
 
         else:
             self.plaintext = self.raw

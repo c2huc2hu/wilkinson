@@ -231,9 +231,9 @@ def beam_search(lm, lattice, beam_width=8, oracle=None, alpha=1):
         beams = beams[:beam_width]
 
         # for debugging long running things
-        print('Best Beams:')
-        for beam in beams:
-            print(str(beam))
+        # print('Best Beams:')
+        # for beam in beams:
+        #     print(str(beam))
     # print('=========================')
     return beams
 

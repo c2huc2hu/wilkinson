@@ -55,6 +55,9 @@ def confidence_model(args, beam_result, wordbank):
             if token.is_unk(wordbank) and gold_tokens[i] == new_word:
                 drops.append(ScoreDrop(score_drop=0, plaintext=new_word, ciphertext=token.raw))
 
+        else:
+            raise Exception('unknown confidence model')
+
     drops.sort(key=lambda x: x.score_drop)
 
     # add S substitutions to the wordbank

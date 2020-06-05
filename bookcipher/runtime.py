@@ -114,6 +114,12 @@ STOP_PERCENTAGE = 90.0 # stop when this much of the wordbank is known
 
 def score(message, gold):
     '''message, gold are both strings'''
+    
+    # gpt decodes punctuation attached to text: e.g. "hello, world.", but the oracle would decode it: "hello , world ."
+    # the score doesn't change because the location of periods is always known
+    message = message.replace(' .', '.')
+    gold = gold.replace(' .', '.')
+
     message_tokens = split_ciphertext(message)
     gold_tokens = split_ciphertext(gold)
 
@@ -128,11 +134,11 @@ for step in range(MAX_ITERATIONS):
         if token.is_unk(wordbank):
             unks += 1
     print('unks', unks)
-    if unks < len(ciphertext) * (1 - STOP_PERCENTAGE/100):
-        break
+    # if unks < len(ciphertext) * (1 - STOP_PERCENTAGE/100):
+    #     break
 
     # Do beam search
-    beam_result = beam_search(lm, lattice, beam_width=args.beam_width, oracle=oracle, args.alpha)
+    beam_result = beam_search(lm, lattice, beam_width=args.beam_width, oracle=oracle, alpha=args.alpha)
 
     # Confidence model:
     # Determines which words to add to the wordbank
