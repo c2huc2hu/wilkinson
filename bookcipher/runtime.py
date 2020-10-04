@@ -140,9 +140,19 @@ for step in range(MAX_ITERATIONS):
     # Do beam search
     beam_result = beam_search(lm, lattice, beam_width=args.beam_width, oracle=oracle, alpha=args.alpha)
 
+    # Print edit distance at each step
+    if args.gold_file is not None:
+        with open(args.gold_file) as fh:
+            gold_text = fh.read()
+
+        print('Accuracy: ', score(lm.decode(beam_result[0].prediction), gold_text))
+
+    if not args.self_learn:
+        break
+
     # Confidence model:
     # Determines which words to add to the wordbank
-    # Should return a list of ScoreDrop objects in sorted order
+    # Shuld return a list of ScoreDrop objects in sorted order
     drops = confidence_model(args, beam_result, wordbank)
     print('drops', drops)
 
@@ -158,26 +168,15 @@ for step in range(MAX_ITERATIONS):
     # Dump the new wordbank
     wordbank.save('output/wordbank{}.full'.format(step))
 
-    # Print edit distance at each step
-    if args.gold_file is not None:
-
-        with open(args.gold_file) as fh:
-            gold_text = fh.read()
-
-        print('Accuracy: ', score(lm.decode(beam_result[0].prediction), gold_text))
-
-    if not args.self_learn:
+    # Set up new lattice
+    if args.language_model == 'none':
+        print('No substitution lattice shouldnt have self-learn enabled')
         break
     else:
-        # Set up new lattice
-        if args.language_model == 'none':
-            print('No substitution lattice shouldnt have self-learn enabled')
-            break
-        else:
-            ciphertext = [wordbank.apply(token) for token in ciphertext]
-            lattice = WilkinsonLattice(ciphertext, wordbank, args.beta, small_vocab)
-            lattice.to_carmel_lattice('output/lattices/unsolved.accuracy{}.lattice'.format(step))
-            print('saved lattice to file')
+        ciphertext = [wordbank.apply(token) for token in ciphertext]
+        lattice = WilkinsonLattice(ciphertext, wordbank, args.beta, small_vocab)
+        lattice.to_carmel_lattice('output/lattices/unsolved.accuracy{}.lattice'.format(step))
+        print('saved lattice to file')
 
 
 print('\n\n================ DONE ===============\n\n\n')
