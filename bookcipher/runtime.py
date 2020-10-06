@@ -59,6 +59,7 @@ else:
     wordbank.save('output/wordbank.full')
 
 if args.synthetic:
+    # this doesn't actually work, you need to change the parameter in wordbank
     wordbank.MAX_WORD = 1
     wordbank.MAX_WORD = 82672
 
@@ -134,7 +135,6 @@ def score(message, gold):
 
     message_tokens = split_ciphertext(message)
     gold_tokens = split_ciphertext(gold)
-    print('denominator', len(gold_tokens))
 
     edit_distance = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
     accuracy = 1 - edit_distance / len(gold_tokens)

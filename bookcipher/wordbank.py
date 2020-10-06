@@ -5,8 +5,8 @@ from functools import total_ordering, lru_cache
 
 from avltree import TokenAVL
 
-MIN_WORD = 1 # index of first word in table cipher
-MAX_WORD = 82672 # maximum word in table cipher
+MIN_WORD = 160 # index of first word in table cipher
+MAX_WORD = 1220 # maximum word in table cipher
 
 
 @total_ordering
