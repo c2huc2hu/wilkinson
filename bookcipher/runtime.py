@@ -3,7 +3,7 @@ import os
 
 import nltk
 
-from wordbank import Wordbank, Token
+from wordbank import Wordbank, Token, MIN_WORD, MAX_WORD
 from vocab import Vocab
 from passes import apply_literals, split_ciphertext, tokenize_ciphertext, visualize
 
@@ -25,6 +25,8 @@ parser.add_argument('--alpha', default=1, help='exponent on the lattice model', 
 parser.add_argument('--beta', default=5, help='number of substitutions to make each decoding', type=float) # note: changing this can slightly affect accuracy of even the oracle model because of pruning
 parser.add_argument('--confidence_model', help='function to determine which words to add to the wordbank', choices=['left', 'oracle'])
 parser.add_argument('--oracle', help='choose the best beam with an oracle (cheating experiment)', action='store_true') # warning: using this with GPT gives lower accuracy results because GPT decodes periods without a leading space keeping them from being separated. to get accurate accuracy results, use a different LM
+parser.add_argument('--synthetic', help='use this when using synthetic data because you need to use a different wordbank', action='store_true')
+parser.add_argument('--wordbank', help='choose a wordbank to use')
 args = parser.parse_args()
 
 if args.source_file is None and args.lattice_file is None:
@@ -44,11 +46,21 @@ vocab = Vocab('dict.modern')
 small_vocab = Vocab('wordbanks/vocab.bnc')
 
 wordbank = Wordbank(vocab)
-wordbank.load('wordbanks/wordbank.miro')
-wordbank.load('wordbanks/wordbank.clean2')
-wordbank.load('wordbanks/wordbank.2880')
-print('done loading dictionary and wordbanks')
-wordbank.save('output/wordbank.full')
+
+if args.wordbank:
+    wordbank.load(args.wordbank)
+else:
+    if args.synthetic:
+        raise ValueError('no wordbank supplied when doing synthetic decoding')
+    wordbank.load('wordbanks/wordbank.miro')
+    wordbank.load('wordbanks/wordbank.clean2')
+    wordbank.load('wordbanks/wordbank.2880')
+    print('done loading dictionary and wordbanks')
+    wordbank.save('output/wordbank.full')
+
+if args.synthetic:
+    wordbank.MAX_WORD = 1
+    wordbank.MAX_WORD = 82672
 
 # Read tokens and apply the first two wordbanks
 if args.source_file is not None:
@@ -122,6 +134,7 @@ def score(message, gold):
 
     message_tokens = split_ciphertext(message)
     gold_tokens = split_ciphertext(gold)
+    print('denominator', len(gold_tokens))
 
     edit_distance = nltk.edit_distance(message_tokens, gold_tokens) # can just count tokens that mismatch, but use edit distance for robustness
     accuracy = 1 - edit_distance / len(gold_tokens)

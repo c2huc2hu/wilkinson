@@ -5,6 +5,10 @@ from functools import total_ordering, lru_cache
 
 from avltree import TokenAVL
 
+MIN_WORD = 1 # index of first word in table cipher
+MAX_WORD = 82672 # maximum word in table cipher
+
+
 @total_ordering
 class Token():
     dict_re = r'(?P<page>\d+)\.\[(?P<row>\d+)\](?P<col>[=-])'
@@ -39,13 +43,13 @@ class Token():
             self.ciphertype = 'table'
             self.row = int(m_table.group('row'))
 
-            if self.row < 160: # table of proper nouns, names or places
+            if self.row < MIN_WORD: # table of proper nouns, names or places
                 self.ciphertype = None
                 self.plaintext = 'America'
                 self.source = 'guessed_proper_noun'
                 self.prob = 1
 
-            if self.row >= 1221: # words added afterwards
+            if self.row > MAX_WORD: # words added afterwards
                 self.ciphertype = None
                 del self.row
                 self.plaintext = 'America'
@@ -203,8 +207,8 @@ class Wordbank():
     # imaginary words that would go at the beginning and end of a dictionary
     left_dict_dummy = Token('1.[1]-', '-')
     right_dict_dummy = Token('780.[1]-', 'zzzzzzz')     # the last attested word is 44,312 = yourself. it will only affect words after "yourself" in the dictionary, so doesn't really matter
-    left_table_dummy = Token('[160]^', '-')
-    right_table_dummy = Token('[1220]^', 'zzzzzzz')     # last attested alphabetical word is 1219 = young, after that it becomes a lookup table again
+    left_table_dummy = Token('[{}]^'.format(MIN_WORD), '-')
+    right_table_dummy = Token('[{}]^'.format(MAX_WORD), 'zzzzzzz')     # last attested alphabetical word is 1219 = young, after that it becomes a lookup table again
 
     def apply(self, query_token):
         '''apply wordbank if the token is known'''
